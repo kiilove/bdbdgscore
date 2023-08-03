@@ -18,7 +18,10 @@ const Setting = () => {
   const navigate = useNavigate();
 
   const fetchPool = async () => {
-    const returnContest = await fetchContestQuery.getDocuments("contest_data");
+    const returnContest = await fetchContestQuery.getDocuments(
+      "contest_stages_assign"
+    );
+    console.log(returnContest);
     setCollectionPool(returnContest);
   };
 
@@ -63,8 +66,8 @@ const Setting = () => {
             <option>선택</option>
             {collectionPool?.length > 0 &&
               collectionPool.map((collection, cIdx) => {
-                const { collectionTitle, contestId } = collection;
-                return <option value={contestId}>{collectionTitle}</option>;
+                const { collectionName, contestId } = collection;
+                return <option value={contestId}>{collectionName}</option>;
               })}
           </select>
         </div>

@@ -1,5 +1,6 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { debounce } from "lodash"; // Import debounce from lodash
 import {
   useFirebaseRealtimeGetDocument,
   useFirebaseRealtimeQuery,
@@ -10,30 +11,31 @@ import { useFirestoreGetDocument } from "../hooks/useFirestores";
 
 const ScoreLogin = () => {
   const navigate = useNavigate();
-
-  const [contestSchedule, setContestSchedule] = useState([]);
-  const [contestJudgeAssign, setContestJudgeAssign] = useState([]);
-  const [currentShedule, setCurrentShedule] = useState({});
+  const [stagesArray, setStagesArray] = useState([]);
+  const [judgeArray, setJudgeArray] = useState([]);
+  const [currentStagesAssign, setCurrentStagesAssign] = useState({});
   const [currentJudgeAssign, setCurrentJudgeAssign] = useState({});
-  const [nextShedule, setNextShedule] = useState({});
+  const [nextStagesAssign, setNextStagesAssign] = useState({});
   const [nextJudgeAssign, setNextJudgeAssign] = useState({});
   const [contests, setContests] = useState({});
-  const [collectionInfo, setCollectionInfo] = useState(null);
-  const { data, loading, error, getDocument } =
-    useFirebaseRealtimeGetDocument();
+
+  const [password, setPassword] = useState("");
+  const [passwordInputs, setPasswordInputs] = useState(["", "", "", ""]);
+
+  const {
+    data: realtimeData,
+    loading,
+    error,
+    getDocument,
+  } = useFirebaseRealtimeGetDocument();
 
   const updateRealtimeJudge = useFirebaseRealtimeUpdateData();
+  const fetchContests = useFirestoreGetDocument("contests");
+  const fetchStagesAssign = useFirestoreGetDocument("contest_stages_assign");
+  const fetchJudgeAssign = useFirestoreGetDocument("contest_judges_assign");
 
-  const pwdRef1 = useRef(null);
-  const pwdRef2 = useRef(null);
-  const pwdRef3 = useRef(null);
-  const pwdRef4 = useRef(null);
-
-  const [password1, setPassword1] = useState("");
-  const [password2, setPassword2] = useState("");
-  const [password3, setPassword3] = useState("");
-  const [password4, setPassword4] = useState("");
-  const [password, setPassword] = useState("");
+  const pwdRefs = [useRef(), useRef(), useRef(), useRef()];
+  const submitButtonRef = useRef(null);
   const handleKeyDown = (refPrev, event) => {
     if (event.key === "Backspace" && event.target.value === "") {
       refPrev.current.focus();
@@ -51,7 +53,6 @@ const ScoreLogin = () => {
       documentId,
       currentJudge
     );
-    //setCurrentState({ ...updatedData });
     console.log("Updated Data:", updatedData);
   };
 
@@ -63,79 +64,16 @@ const ScoreLogin = () => {
     ).then(() =>
       navigate("/autoscoretable", {
         state: {
-          stageId: data.stageId,
+          stageId: realtimeData.stageId,
           contestId: contests.contests.id,
-          scheduleInfo: currentShedule,
+          stageInfo: currentStagesAssign,
           judgeInfo: currentJudgeAssign,
-          nextSchedule: nextShedule,
+          nextStageInfo: nextStagesAssign,
           nextJudge: nextJudgeAssign,
-          collectionInfo,
+          collectionName: contests.contests.collectionName,
         },
       })
     );
-  };
-
-  const handleInputs = (setPwd, pwdRefNext, event) => {
-    if (event.target.value.length > 1) {
-      return; // 입력의 길이가 1을 초과하면 아무 것도 하지 않음
-    }
-    setPwd(event.target.value);
-    if (event.target.value) {
-      pwdRefNext.current.focus();
-    }
-  };
-  const handleInputsLast = (setPwd, pwdRefNext, event, onedayPassword) => {
-    if (event.target.value.length > 1) {
-      return; // 입력의 길이가 1을 초과하면 아무 것도 하지 않음
-    }
-    setPwd(event.target.value);
-
-    if (event.target.value) {
-      const pwd =
-        pwdRef1.current.value.toString() +
-        pwdRef2.current.value.toString() +
-        pwdRef3.current.value.toString() +
-        pwdRef4.current.value.toString();
-      setPassword(pwd);
-    }
-  };
-  //const { currentContest } = useContext(CurrentContestContext);
-
-  const fetchSchedule = useFirestoreGetDocument("contest_data");
-  const fetchJudgeAssign = useFirestoreGetDocument("contest_judges_assign");
-
-  const fetchPool = async (contestDataId, contestJudgeAssignId) => {
-    const returnSchedule = await fetchSchedule.getDocument(contestDataId);
-    const returnJudgeAssign = await fetchJudgeAssign.getDocument(
-      contestJudgeAssignId
-    );
-    returnSchedule && setCollectionInfo(returnSchedule.collectionTitle);
-    returnSchedule && setContestSchedule([...returnSchedule.schedule]);
-    returnJudgeAssign && setContestJudgeAssign([...returnJudgeAssign.judges]);
-  };
-
-  const handleCurrentInfo = (stageId) => {
-    const findSchedule = contestSchedule.find((f) => f.stageId === stageId);
-    const findNextSchedule = contestSchedule.find(
-      (f) => f.stageNumber === findSchedule.stageNumber + 1
-    );
-
-    const findJudges = contestJudgeAssign.find(
-      (f) =>
-        f.gradeId === findSchedule?.contestGradeId &&
-        f.seatIndex === contests.machineId
-    );
-    const findNextJudges = contestJudgeAssign.find(
-      (f) =>
-        f.gradeId === findNextSchedule?.contestGradeId &&
-        f.seatIndex === contests.machineId
-    );
-    //console.log(findNextJudges);
-
-    setCurrentShedule({ ...findSchedule });
-    setCurrentJudgeAssign({ ...findJudges });
-    setNextShedule({ ...findNextSchedule });
-    setNextJudgeAssign({ ...findNextJudges });
   };
 
   useEffect(() => {
@@ -150,33 +88,99 @@ const ScoreLogin = () => {
 
   useEffect(() => {
     if (contests?.contests?.id) {
-      getDocument("currentStage", contests.contests.id); // Replace with your actual collection name and document id
+      // Debounce the getDocument call to once every second
+      const debouncedGetDocument = debounce(
+        () => getDocument("currentStage", contests.contests.id),
+        2000
+      );
+      debouncedGetDocument();
     }
   }, [getDocument, contests]);
 
   useEffect(() => {
     contests?.contests?.id &&
       fetchPool(
-        contests.contests.contestDataId,
-        contests.contests.contestJudgeAssignListId
+        contests.contests.contestStagesAssignId,
+        contests.contests.contestJudgesAssignId
       );
   }, [contests]);
 
   useEffect(() => {
-    //console.log(data);
     if (
-      contestSchedule?.length > 0 &&
-      contestJudgeAssign?.length > 0 &&
-      data?.stageId
+      stagesArray?.length > 0 &&
+      judgeArray?.length > 0 &&
+      realtimeData?.stageId
     ) {
-      handleCurrentInfo(data.stageId);
+      handleCurrentInfo(realtimeData.stageId);
     }
-  }, [contestSchedule, contestJudgeAssign, data]);
+    console.log(realtimeData);
+  }, [stagesArray, judgeArray, realtimeData]);
 
-  if (!contests) {
-    // 리다이렉트를 위한 useEffect를 기다림
-    return null;
-  }
+  const fetchRealtimeData = () => {
+    getDocument("currentStage", contests.contests.id);
+  };
+
+  const handleInputs = (index, value) => {
+    if (value.length > 1) {
+      return; // 입력의 길이가 1을 초과하면 아무 것도 하지 않음
+    }
+
+    setPasswordInputs((prevState) =>
+      prevState.map((input, i) => (i === index ? value : input))
+    );
+
+    // 입력 값이 존재하면 다음 입력 칸으로 focus 이동
+    if (value) {
+      if (index < pwdRefs.length - 1) {
+        pwdRefs[index + 1].current.focus();
+      }
+    } else {
+      // 입력 값이 없으면 이전 입력 칸으로 focus 이동
+      if (index > 0) {
+        pwdRefs[index - 1].current.focus();
+      }
+    }
+
+    // 모든 입력 칸에 값이 채워졌을 때 심사진행 버튼으로 focus 이동
+    if (passwordInputs.join("").length === 4) {
+      pwdRefs[pwdRefs.length - 1].current.blur(); // 마지막 입력 칸에서 focus 해제
+      submitButtonRef.current.focus(); // 심사진행 버튼으로 focus 이동
+    }
+  };
+
+  const fetchPool = async (stagesAssignId, judgesAssignId) => {
+    const returnStagesAssign = await fetchStagesAssign.getDocument(
+      stagesAssignId
+    );
+    const returnJudgeAssign = await fetchJudgeAssign.getDocument(
+      judgesAssignId
+    );
+
+    returnStagesAssign && setStagesArray([...returnStagesAssign.stages]);
+    returnJudgeAssign && setJudgeArray([...returnJudgeAssign.judges]);
+  };
+
+  const handleCurrentInfo = (stageId) => {
+    const findStage = stagesArray.find((f) => f.stageId === stageId);
+    const findNextStage = stagesArray.find(
+      (f) => f.stageNumber === findStage.stageNumber + 1
+    );
+
+    const findJudges = judgeArray.find(
+      (f) =>
+        f.gradeId === findStage?.gradeId && f.seatIndex === contests.machineId
+    );
+    const findNextJudges = judgeArray.find(
+      (f) =>
+        f.gradeId === findNextStage?.gradeId &&
+        f.seatIndex === contests.machineId
+    );
+
+    setCurrentStagesAssign({ ...findStage });
+    setCurrentJudgeAssign({ ...findJudges });
+    setNextStagesAssign({ ...findNextStage });
+    setNextJudgeAssign({ ...findNextJudges });
+  };
 
   return (
     <div className="flex w-full h-full flex-col">
@@ -189,84 +193,47 @@ const ScoreLogin = () => {
         </span>
       </div>
       <div className="flex text-5xl font-bold text-blue-900 h-auto w-full justify-center items-center p-5">
-        {currentShedule?.contestCategoryTitle} (
-        {currentShedule?.contestGradeTitle}){currentJudgeAssign?.onedayPassword}
+        {realtimeData?.categoryTitle} ({realtimeData?.gradeTitle})
+        {currentJudgeAssign?.onedayPassword}
       </div>
       <div className="flex w-full justify-center items-center p-5 gap-x-5">
         <div className="flex w-full justify-center items-center p-5 gap-x-5">
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef1}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef1, e)}
-              onChange={(e) => handleInputs(setPassword1, pwdRef2, e)}
-              value={password1}
-              name="judgePassword1"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef2}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef1, e)}
-              onChange={(e) => handleInputs(setPassword2, pwdRef3, e)}
-              value={password2}
-              name="judgePassword2"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef3}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef2, e)}
-              onChange={(e) => handleInputs(setPassword3, pwdRef4, e)}
-              value={password3}
-              name="judgePassword3"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef4}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef3, e)}
-              onChange={(e) => handleInputsLast(setPassword4, pwdRef4, e)}
-              value={password4}
-              name="judgePassword4"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
+          {passwordInputs.map((value, index) => (
+            <div
+              key={index}
+              className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md"
+            >
+              <input
+                type="number"
+                ref={pwdRefs[index]}
+                onFocus={(e) => e.target.select()}
+                onKeyDown={(e) => handleKeyDown(pwdRefs[index - 1], e)}
+                onChange={(e) => handleInputs(index, e.target.value)}
+                value={value}
+                name={`judgePassword${index + 1}`}
+                maxLength={1}
+                className="w-28 h-28 text-6xl flex text-center align-middle outline-none"
+              />
+            </div>
+          ))}
         </div>
       </div>
       <div className="flex w-full h-auto p-3 justify-center items-center">
-        {password === currentJudgeAssign.onedayPassword &&
-          password1 &&
-          password2 &&
-          password3 &&
-          password4 && (
-            <button
-              className=" w-44 h-24 bg-blue-500 text-white text-2xl font-semibold rounded-lg"
-              onClick={() =>
-                handleJudgeLogin(
-                  "currentStage",
-                  contests.contests.id,
-                  currentJudgeAssign.seatIndex
-                )
-              }
-            >
-              심사진행
-            </button>
-          )}
+        {passwordInputs.join("") === currentJudgeAssign.onedayPassword && (
+          <button
+            className="w-44 h-24 bg-blue-500 text-white text-2xl font-semibold rounded-lg"
+            ref={submitButtonRef}
+            onClick={() =>
+              handleJudgeLogin(
+                "currentStage",
+                contests.contests.id,
+                currentJudgeAssign.seatIndex
+              )
+            }
+          >
+            심사진행
+          </button>
+        )}
       </div>
     </div>
   );

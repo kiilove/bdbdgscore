@@ -17,9 +17,9 @@ import { useFirebaseRealtimeUpdateData } from "../hooks/useFirebaseRealtime";
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const [scoreRange, setScoreRange] = useState([]);
 
-  const [stagesAssignInfo, setStagesAssignInfo] = useState({});
+  const [scheduleInfo, setScheduleInfo] = useState({});
   const [judgeInfo, setJudgeInfo] = useState({});
-  const [nextStagesAssignInfo, setNextStagesAssignInfo] = useState({});
+  const [nextScheduleInfo, setNextScheduleInfo] = useState({});
   const [nextJudgeInfo, setNextJudgeInfo] = useState({});
   const [judgeSign, setJudgeSign] = useState(null);
   const [isHolding, setIsHolding] = useState(false);
@@ -28,8 +28,8 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const fetchJudgesAssign = useFirestoreGetDocument("contest_judges_assign");
-  const addScoreBoard = useFirestoreAddData(location.state.collectionName);
+  const getJudgeData = useFirestoreQuery();
+  const addScoreBoard = useFirestoreAddData(location.state.collectionInfo);
   const updateRealtimeJudge = useFirebaseRealtimeUpdateData();
   const handleAddedSuccessState = async (
     collectionName,
@@ -86,16 +86,18 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
         console.log(currentScoreBoard.judgeUid, nextJudgeInfo.judgeUid);
         judgeInfo.judgeUid === nextJudgeInfo.judgeUid
           ? navigate("/scoreloginauto", {
-              state: { propStageNumber: stagesAssignInfo.stageNumber + 1 },
+              state: { propStageNumber: scheduleInfo.stageNumber + 1 },
             })
           : navigate("/scorelogin");
       }));
   };
   const fetchJudge = async (judgeUid) => {
-    const returnData = await fetchJudgesAssign.getDocument(
-      location.state.contestId
+    console.log("judgeUid", judgeUid);
+    const condition = [where("judgeUid", "==", judgeUid)];
+    const returnData = await getJudgeData.getDocuments(
+      "judges_pool",
+      condition
     );
-    console.log(location.state.contestId);
     console.log(returnData);
     if (returnData.length > 0) {
       setJudgeSign(returnData[0].judgeSignature);
@@ -104,28 +106,25 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   };
 
   const initScoreCard = () => {
-    console.log(stagesAssignInfo);
-    const scoreCardInfo = stagesAssignInfo.matchedPlayers.map(
-      (player, pIdx) => {
-        const { playerNumber, playerUid, playerIndex } = player;
+    const scoreCardInfo = scheduleInfo.matchedPlayers.map((player, pIdx) => {
+      const { playerNumber, playerUid, playerIndex } = player;
 
-        return {
-          contestId: judgeInfo.contestId,
-          scoreId: uuidv4(),
-          categoryId: stagesAssignInfo.contestCategoryId,
-          gradeId: stagesAssignInfo.contestGradeId,
-          scoreType: stagesAssignInfo.contestCategoryJudgeType,
-          playerNumber,
-          playerUid,
-          playerIndex,
-          judgeUId: judgeInfo.judgeUid,
+      return {
+        contestId: judgeInfo.contestId,
+        scoreId: uuidv4(),
+        categoryId: scheduleInfo.contestCategoryId,
+        gradeId: scheduleInfo.contestGradeId,
+        scoreType: scheduleInfo.contestCategoryJudgeType,
+        playerNumber,
+        playerUid,
+        playerIndex,
+        judgeUId: judgeInfo.judgeUid,
 
-          playerScore: 0,
-        };
-      }
-    );
+        playerScore: 0,
+      };
+    });
 
-    const scoreRange = stagesAssignInfo.matchedPlayers.map((player, pIdx) => {
+    const scoreRange = scheduleInfo.matchedPlayers.map((player, pIdx) => {
       return {
         scoreValue: pIdx + 1,
         scoreOwner: undefined,
@@ -197,15 +196,15 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   };
 
   useEffect(() => {
-    if (stagesAssignInfo.stageId) {
+    if (scheduleInfo.stageId) {
       const scoreboardInfo = initScoreCard();
 
       setCurrentScoreBoard(scoreboardInfo.scoreCardInfo);
       setScoreRange(scoreboardInfo.scoreRange);
     }
 
-    console.log(stagesAssignInfo);
-  }, [stagesAssignInfo]);
+    console.log(scheduleInfo);
+  }, [scheduleInfo]);
 
   useEffect(() => {
     if (judgeInfo?.judgeUid) {
@@ -216,11 +215,11 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   useEffect(() => {
     console.log(location);
     if (location?.state?.stageId) {
-      setStagesAssignInfo({
-        ...location.state.stagesAssignInfo,
+      setScheduleInfo({
+        ...location.state.scheduleInfo,
       });
       setJudgeInfo({ ...location.state.judgeInfo });
-      setNextStagesAssignInfo({ ...location.state.nextSchedule });
+      setNextScheduleInfo({ ...location.state.nextSchedule });
       setNextJudgeInfo({ ...location.state.nextJudge });
     }
   }, [location]);
@@ -261,8 +260,8 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
       {currentScoreBoard && (
         <div className="flex justify-start flex-col w-full">
           <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-100 mb-2 font-semibold text-lg">
-            {stagesAssignInfo.contestCategoryTitle}(
-            {stagesAssignInfo.contestGradeTitle})
+            {scheduleInfo.contestCategoryTitle}({scheduleInfo.contestGradeTitle}
+            )
           </div>
           <div className="flex w-full justify-start items-center flex-col gap-y-2">
             <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
