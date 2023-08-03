@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   useFirebaseRealtimeGetDocument,
   useFirebaseRealtimeQuery,
@@ -8,8 +8,9 @@ import {
 import { CurrentContestContext } from "../contexts/CurrentContestContext";
 import { useFirestoreGetDocument } from "../hooks/useFirestores";
 
-const ScoreLogin = () => {
+const ScoreLoginAuto = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [contestSchedule, setContestSchedule] = useState([]);
   const [contestJudgeAssign, setContestJudgeAssign] = useState([]);
@@ -18,6 +19,7 @@ const ScoreLogin = () => {
   const [nextShedule, setNextShedule] = useState({});
   const [nextJudgeAssign, setNextJudgeAssign] = useState({});
   const [contests, setContests] = useState({});
+  const [currentStageNumber, setCurrentStageNumber] = useState();
   const [collectionInfo, setCollectionInfo] = useState(null);
   const { data, loading, error, getDocument } =
     useFirebaseRealtimeGetDocument();
@@ -170,6 +172,7 @@ const ScoreLogin = () => {
       data?.stageId
     ) {
       handleCurrentInfo(data.stageId);
+      setCurrentStageNumber(data.stageNumber);
     }
   }, [contestSchedule, contestJudgeAssign, data]);
 
@@ -189,87 +192,41 @@ const ScoreLogin = () => {
         </span>
       </div>
       <div className="flex text-5xl font-bold text-blue-900 h-auto w-full justify-center items-center p-5">
-        {currentShedule?.contestCategoryTitle} (
-        {currentShedule?.contestGradeTitle}){currentJudgeAssign?.onedayPassword}
+        {nextShedule?.contestCategoryTitle} ({nextShedule?.contestGradeTitle})
+        {currentJudgeAssign?.onedayPassword}
       </div>
-      <div className="flex w-full justify-center items-center p-5 gap-x-5">
-        <div className="flex w-full justify-center items-center p-5 gap-x-5">
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef1}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef1, e)}
-              onChange={(e) => handleInputs(setPassword1, pwdRef2, e)}
-              value={password1}
-              name="judgePassword1"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef2}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef1, e)}
-              onChange={(e) => handleInputs(setPassword2, pwdRef3, e)}
-              value={password2}
-              name="judgePassword2"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef3}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef2, e)}
-              onChange={(e) => handleInputs(setPassword3, pwdRef4, e)}
-              value={password3}
-              name="judgePassword3"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-          <div className="flex justify-center items-center w-32 h-32 border-8 border-orange-400 rounded-md">
-            <input
-              type="number"
-              ref={pwdRef4}
-              onFocus={(e) => e.target.select()} // 이 부분을 추가함
-              onKeyDown={(e) => handleKeyDown(pwdRef3, e)}
-              onChange={(e) => handleInputsLast(setPassword4, pwdRef4, e)}
-              value={password4}
-              name="judgePassword4"
-              maxLength={1}
-              className="w-28 h-28 text-6xl flex text-center align-middle outline-none "
-            />
-          </div>
-        </div>
-      </div>
+
       <div className="flex w-full h-auto p-3 justify-center items-center">
-        {password === currentJudgeAssign.onedayPassword &&
-          password1 &&
-          password2 &&
-          password3 &&
-          password4 && (
-            <button
-              className=" w-44 h-24 bg-blue-500 text-white text-2xl font-semibold rounded-lg"
-              onClick={() =>
-                handleJudgeLogin(
-                  "currentStage",
-                  contests.contests.id,
-                  currentJudgeAssign.seatIndex
-                )
-              }
-            >
-              심사진행
-            </button>
-          )}
+        {location?.state?.propStageNumber !== currentStageNumber ? (
+          <button
+            className=" w-44 h-24 bg-blue-500 text-white text-2xl font-semibold rounded-lg"
+            onClick={() =>
+              handleJudgeLogin(
+                "currentStage",
+                contests.contests.id,
+                currentJudgeAssign.seatIndex
+              )
+            }
+          >
+            대기중
+          </button>
+        ) : (
+          <button
+            className=" w-44 h-24 bg-blue-500 text-white text-2xl font-semibold rounded-lg"
+            onClick={() =>
+              handleJudgeLogin(
+                "currentStage",
+                contests.contests.id,
+                currentJudgeAssign.seatIndex
+              )
+            }
+          >
+            심사진행
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-export default ScoreLogin;
+export default ScoreLoginAuto;
