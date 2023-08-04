@@ -6,12 +6,15 @@ import {
 import { CurrentContestContext } from "../contexts/CurrentContestContext";
 
 import { useNavigate } from "react-router-dom";
+import { BasicDataContext } from "../contexts/BasicDataContext";
 
 const Setting = () => {
   const [collectionPool, setCollectionPool] = useState([]);
   const { currentContest, setCurrentContest } = useContext(
     CurrentContestContext
   );
+  const { basicData, setBasciData, basicDataVer, setBasicDataVer } =
+    useContext(BasicDataContext);
 
   const fetchContestQuery = useFirestoreQuery();
   const fetchContest = useFirestoreGetDocument("contests");

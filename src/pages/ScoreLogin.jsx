@@ -13,6 +13,7 @@ const ScoreLogin = () => {
   const navigate = useNavigate();
   const [stagesArray, setStagesArray] = useState([]);
   const [judgeArray, setJudgeArray] = useState([]);
+
   const [currentStagesAssign, setCurrentStagesAssign] = useState({});
   const [currentJudgeAssign, setCurrentJudgeAssign] = useState({});
   const [nextStagesAssign, setNextStagesAssign] = useState({});
@@ -30,7 +31,7 @@ const ScoreLogin = () => {
   } = useFirebaseRealtimeGetDocument();
 
   const updateRealtimeJudge = useFirebaseRealtimeUpdateData();
-  const fetchContests = useFirestoreGetDocument("contests");
+  const fetchPlayersFinal = useFirestoreGetDocument("contest_players_final");
   const fetchStagesAssign = useFirestoreGetDocument("contest_stages_assign");
   const fetchJudgeAssign = useFirestoreGetDocument("contest_judges_assign");
 
@@ -113,12 +114,7 @@ const ScoreLogin = () => {
     ) {
       handleCurrentInfo(realtimeData.stageId);
     }
-    console.log(realtimeData);
   }, [stagesArray, judgeArray, realtimeData]);
-
-  const fetchRealtimeData = () => {
-    getDocument("currentStage", contests.contests.id);
-  };
 
   const handleInputs = (index, value) => {
     if (value.length > 1) {

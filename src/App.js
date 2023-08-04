@@ -6,24 +6,27 @@ import Register from "./pages/Register";
 import Setting from "./pages/Setting";
 
 import { CurrentContestProvider } from "./contexts/CurrentContestContext";
+import { BasicDataProvider } from "./contexts/BasicDataContext";
 import ScoreLogin from "./pages/ScoreLogin";
 import AutoScoreTable from "./pages/AutoScoreTable";
 import ScoreLoginAuto from "./pages/ScoreLoginAuto";
 
 function App() {
   return (
-    <CurrentContestProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/adminlogin" element={<Login />} />
-          <Route path="/setting" element={<Setting />} />
-          <Route path="/scorelogin" element={<ScoreLogin />} />
-          <Route path="/scoreloginauto" element={<ScoreLoginAuto />} />
-          <Route path="/autoscoretable" element={<AutoScoreTable />} />
-        </Routes>
-      </BrowserRouter>
-    </CurrentContestProvider>
+    <BasicDataProvider>
+      <CurrentContestProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/adminlogin" element={<Login />} />
+            <Route path="/setting" element={<Setting />} />
+            <Route path="/scorelogin" element={<ScoreLogin />} />
+            <Route path="/scoreloginauto" element={<ScoreLoginAuto />} />
+            <Route path="/autoscoretable" element={<AutoScoreTable />} />
+          </Routes>
+        </BrowserRouter>
+      </CurrentContestProvider>
+    </BasicDataProvider>
   );
 }
 
