@@ -2,11 +2,16 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   useFirestoreAddData,
+  useFirestoreDeleteData,
   useFirestoreGetDocument,
   useFirestoreQuery,
 } from "../hooks/useFirestores";
 import { v4 as uuidv4 } from "uuid";
-import { AiFillLock } from "react-icons/ai";
+import {
+  AiFillLock,
+  AiFillMinusCircle,
+  AiFillMinusSquare,
+} from "react-icons/ai";
 import YbbfLogo from "../assets/img/ybbf_logo.png";
 import { addDoc, collection, where } from "firebase/firestore";
 import CanvasWithImageData from "../components/CanvasWithImageData";
@@ -15,8 +20,12 @@ import { add } from "date-fns";
 import { useFirebaseRealtimeUpdateData } from "../hooks/useFirebaseRealtime";
 import { CurrentContestContext } from "../contexts/CurrentContestContext";
 import LoadingPage from "./LoadingPage";
+import { generateUUID } from "../functions/functions";
+import AddedModal from "../messageBox/AddedModal";
 
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [scoreRangeArray, setScoreRangeArray] = useState([]);
   const [scoreCardArray, setScoreCardArray] = useState([]);
@@ -26,6 +35,14 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const [nextStagesAssignInfo, setNextStagesAssignInfo] = useState({});
   const [nextJudgeInfo, setNextJudgeInfo] = useState({});
 
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [message, setMessage] = useState({
+    delete: "wait",
+    add: "wait",
+    validate: "wait",
+  });
+  const [validateScoreCard, setValidateScoreCard] = useState(true);
+
   const [currentStageInfo, setCurrentStageInfo] = useState([]);
   const [stagePlayers, setStagePlayers] = useState([]);
 
@@ -34,21 +51,79 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const { currentContest } = useContext(CurrentContestContext);
 
   const fetchPlayersFinal = useFirestoreGetDocument("contest_players_final");
+  const deleteScoreCard = useFirestoreDeleteData(location.state.collectionName);
+  const addScoreCard = useFirestoreAddData(location.state.collectionName);
+  const fetchScoreCardQuery = useFirestoreQuery();
 
-  const location = useLocation();
-  const navigate = useNavigate();
+  // 심사전인지 후인지 체크하여 state값 변경함
+  const handleScore = (
+    playerUid,
+    scoreValue,
+    scoreArrayIndex,
+    stageInfoIndex,
+    actionType
+  ) => {
+    let newScoreValue = scoreValue;
+    let newPlayerUid = playerUid;
 
-  const handleScoreCardTitle = (grades) => {};
-  const initScoreCard = (stageInfo, judgeInfo, grades, players) => {
+    if (actionType === "unScore") {
+      newScoreValue = 0;
+      newPlayerUid = undefined;
+    }
+    const newCurrentStageInfo = [...currentStageInfo];
+    const newMathedPlayers = [
+      ...newCurrentStageInfo[stageInfoIndex].matchedPlayers,
+    ];
+    const newMatchedRange = [
+      ...newCurrentStageInfo[stageInfoIndex].matchedRange,
+    ];
+    const playerArrayIndex = newMathedPlayers.findIndex(
+      (f) => f.playerUid === playerUid
+    );
+
+    console.log(playerArrayIndex);
+    const newPlayer = {
+      ...newMathedPlayers[playerArrayIndex],
+      playerScore: newScoreValue,
+    };
+
+    const newRange = {
+      ...newMatchedRange[scoreArrayIndex],
+      scoreOwner: newPlayerUid,
+    };
+
+    newMathedPlayers.splice(playerArrayIndex, 1, { ...newPlayer });
+
+    newMatchedRange.splice(scoreArrayIndex, 1, { ...newRange });
+
+    const newStageInfo = {
+      ...newCurrentStageInfo[stageInfoIndex],
+      matchedPlayers: [...newMathedPlayers],
+      matchedRange: [...newMatchedRange],
+    };
+
+    newCurrentStageInfo.splice(stageInfoIndex, 1, { ...newStageInfo });
+    console.log(newCurrentStageInfo);
+    setCurrentStageInfo([...newCurrentStageInfo]);
+  };
+
+  // 비교심사등을 위해서 함수 따로 분리되었음
+  const makeScoreCard = (stageInfo, judgeInfo, grades, players) => {
     const { stageId, stageNumber } = stageInfo;
     const { judgeUid, judgeName, isHead, seatIndex, contestId } = judgeInfo;
 
     const scoreCardInfo = grades.map((grade, gIdx) => {
       const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
 
-      const matchedPlayers = players
+      const filterPlayers = players
         .filter((player) => player.contestGradeId === gradeId)
         .sort((a, b) => a.playerIndex - b.playerIndex);
+
+      const matchedPlayers = filterPlayers.map((player, pIdx) => {
+        const newPlayers = { ...player, playerScore: 0 };
+
+        return newPlayers;
+      });
 
       const matchedRange = matchedPlayers.map((player, pIdx) => {
         return {
@@ -78,6 +153,192 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     return scoreCardInfo;
   };
 
+  // 심사표 전송을 하기전에 이중 등록을 방지하기 위해 gradeId,judgeUid값을 받아서
+  // 문서id를 수집한후에 map으로 돌리면서 삭제해줌
+  const deletePreScoreCard = async (collectionName, gradeId, judgeUid) => {
+    const condition = [
+      where("gradeId", "==", gradeId),
+      where("judgeUid", "==", judgeUid),
+    ];
+
+    const getDocuId = await fetchScoreCardQuery.getDocuments(
+      collectionName,
+      condition
+    );
+
+    if (getDocuId?.length <= 0) {
+      return;
+    }
+    setMessage({
+      delete: "start",
+      add: "wait",
+      validate: "wait",
+      validateMsg: "",
+    });
+    getDocuId.map(async (docu, dIdx) => {
+      try {
+        await deleteScoreCard.deleteData(docu.id);
+        console.log("deleted:", docu.id);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+    setMessage({ delete: "end", add: "wait", validate: "wait" });
+  };
+
+  //currentStageInfo를 받아서 matchedPlayers를 맵으로 돌면서 각각 문서를 작성함
+  // 작성전에 deletePreScoreCard함수를 호출해서 이중으로 작성을 방지함
+  const handleSaveScoreCard = async (propData) => {
+    let scoreCardsArray = [];
+
+    if (propData?.length <= 0) {
+      return;
+    }
+
+    // 기존 score card 삭제
+
+    setMsgOpen(true);
+    await Promise.all(
+      propData.map(async (data) => {
+        await deletePreScoreCard(
+          location.state.collectionName,
+          data.gradeId,
+          data.judgeUid
+        );
+
+        const {
+          categoryId,
+          categoryTitle,
+          gradeId,
+          gradeTitle,
+          judgeUid,
+          judgeName,
+          matchedPlayers,
+        } = data;
+
+        matchedPlayers.forEach((match) => {
+          const {
+            playerNumber,
+            playerUid,
+            playerName,
+            playerGym,
+            playerScore,
+          } = match;
+
+          const newInfo = {
+            docuId: generateUUID(),
+            categoryId,
+            categoryTitle,
+            gradeId,
+            gradeTitle,
+            judgeUid,
+            judgeName,
+            playerNumber,
+            playerUid,
+            playerName,
+            playerGym,
+            playerScore: parseInt(playerScore),
+          };
+
+          scoreCardsArray.push(newInfo);
+        });
+      })
+    );
+
+    // 새로운 score card 추가
+    setMessage({
+      delete: "end",
+      add: "start",
+      validate: "wait",
+      validateMsg: "",
+    });
+    await Promise.all(
+      scoreCardsArray.map(async (score) => {
+        try {
+          await addScoreCard.addData(score);
+          console.log("added");
+        } catch (error) {
+          console.log(error);
+        }
+      })
+    );
+
+    setMessage({
+      delete: "end",
+      add: "end",
+      validate: "wait",
+      validateMsg: "",
+    });
+    handleValidateScore(location.state.collectionName, scoreCardsArray);
+  };
+
+  const handleValidateScore = async (collectionName, prevState) => {
+    if (prevState?.length <= 0) {
+      setMessage({
+        delete: "end",
+        add: "end",
+        validate: "fail",
+        validateMsg: "데이터 공유에 문제가 발생했습니다.",
+      });
+      return;
+    }
+
+    prevState.map(async (state, sIdx) => {
+      const { gradeId, judgeUid, playerUid, playerScore } = state;
+      const condition = [
+        where("gradeId", "==", gradeId),
+        where("judgeUid", "==", judgeUid),
+        where("playerUid", "==", playerUid),
+      ];
+
+      const getAddedData = await fetchScoreCardQuery.getDocuments(
+        collectionName,
+        condition
+      );
+
+      if (getAddedData?.length > 1) {
+        setMessage({
+          delete: "end",
+          add: "end",
+          validate: "fail",
+          validateMsg: "다중 저장된 데이터가 있습니다.",
+        });
+      }
+
+      switch (getAddedData?.length) {
+        case 0:
+          setMessage({
+            delete: "end",
+            add: "end",
+            validate: "fail",
+            validateMsg: "데이터 저장에 문제가 있습니다.",
+          });
+          break;
+
+        case 1:
+          if (parseInt(getAddedData[0].playerScore) === parseInt(playerScore)) {
+            setMessage({
+              delete: "end",
+              add: "end",
+              validate: "end",
+              validateMsg: "검증완료",
+            });
+          } else {
+            setMessage({
+              delete: "end",
+              add: "end",
+              validate: "fail",
+              validateMsg: "저장된 데이터 오류",
+            });
+          }
+          break;
+
+        default:
+          break;
+      }
+    });
+  };
+
   const fetchPool = async (playersFinalId) => {
     if (playersFinalId === undefined) {
       return;
@@ -92,6 +353,17 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   };
 
   useEffect(() => {
+    const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
+      return (
+        stage.matchedRange &&
+        stage.matchedRange.some((range) => range.scoreOwner === undefined)
+      );
+    });
+
+    setValidateScoreCard(hasUndefinedScoreOwner);
+  }, [currentStageInfo]);
+
+  useEffect(() => {
     if (!currentContest?.contests) {
       return;
     } else {
@@ -103,7 +375,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     if (playersFinalArray?.length <= 0 && !location) {
       return;
     } else {
-      const scoreInfo = initScoreCard(
+      const scoreInfo = makeScoreCard(
         location.state.stageInfo,
         location.state.judgeInfo,
         location.state.stageInfo.grades,
@@ -135,6 +407,12 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
         {!isLoading && (
           <>
             <div className="flex h-auto py-2 justify-end items-center w-full">
+              <AddedModal
+                isOpen={msgOpen}
+                message={message}
+                onCancel={() => setMsgOpen(false)}
+                onConfirm={() => setMsgOpen(false)}
+              />
               <div className="flex w-1/3 items-start flex-col">
                 <div className="flex w-32 h-auto py-2 justify-center items-center text-lg">
                   모드
@@ -161,119 +439,119 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
               </div>
             </div>
             <div className="flex justify-start flex-col w-full">
-              {currentStageInfo.map((stage, sIdx) => (
-                <>
-                  <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
-                    {stage.categoryTitle} / {stage.gradeTitle}
-                  </div>
-                  <div className="flex w-full justify-start items-center flex-col gap-y-2 mb-5">
-                    <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
-                      <div className="flex w-32 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                        <span className="text-sm">선수번호</span>
-                      </div>
-                      <div className="flex w-32 h-10 justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
-                        <span className="text-sm">순위</span>
-                      </div>
-                      <div className="flex w-full h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                        <span className="text-sm">순위선택</span>
+              {currentStageInfo?.length > 1 &&
+                currentStageInfo.map((stage, sIdx) => (
+                  <>
+                    <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
+                      {stage.categoryTitle} / {stage.gradeTitle}
+                    </div>
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 mb-5">
+                      <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
+                        <div className="flex w-32 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
+                          <span className="text-sm">선수번호</span>
+                        </div>
+                        <div className="flex w-32 h-10 justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                          <span className="text-sm">순위</span>
+                        </div>
+                        <div className="flex w-full h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
+                          <span className="text-sm">순위선택</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex w-full justify-start items-center flex-col gap-y-2">
-                    <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
-                      {stage.matchedPlayers?.length > 0 &&
-                        stage.matchedPlayers.map((matched, bIdx) => {
-                          const { playerNumber, playerScore, matchedRange } =
-                            matched;
-                          return (
-                            <div className="flex w-full h-full rounded-md gap-x-2">
-                              <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
-                                <span className="text-4xl font-semibold">
-                                  {playerNumber}
-                                </span>
-                              </div>
-                              <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
-                                {playerScore !== 0 && playerScore < 100 && (
-                                  <span className="text-4xl">
-                                    {playerScore}
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2">
+                      <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
+                        {stage.matchedPlayers?.length > 0 &&
+                          stage.matchedPlayers.map((matched, mIdx) => {
+                            const { playerNumber, playerScore, playerUid } =
+                              matched;
+
+                            return (
+                              <div className="flex w-full h-full rounded-md gap-x-2">
+                                <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
+                                  <span className="text-4xl font-semibold">
+                                    {playerNumber}
                                   </span>
-                                )}
-                                {playerScore >= 100 && (
-                                  <span className="text-4xl">제외</span>
-                                )}
-                              </div>
-                              <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
-                                <div className="flex w-full h-full flex-wrap gap-2">
-                                  {matchedRange?.length > 0 &&
-                                    matchedRange
-                                      .sort(
-                                        (a, b) => a.playerIndex - b.playerIndex
-                                      )
-                                      .map((score, rIdx) => {
-                                        const { scoreValue, scoreOwner } =
-                                          score;
-                                        return (
-                                          <>
-                                            {scoreOwner === undefined &&
-                                              playerScore === 0 && (
+                                </div>
+                                <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                                  {playerScore !== 0 && playerScore < 100 && (
+                                    <span className="text-4xl">
+                                      {playerScore}
+                                    </span>
+                                  )}
+                                  {playerScore >= 100 && (
+                                    <span className="text-4xl">제외</span>
+                                  )}
+                                </div>
+                                <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
+                                  <div
+                                    className="flex w-full h-full flex-wrap gap-2"
+                                    style={{ minHeight: "80px" }}
+                                  >
+                                    {stage.matchedRange?.length > 0 &&
+                                      stage.matchedRange
+                                        .sort(
+                                          (a, b) => a.scoreIndex - b.scoreIndex
+                                        )
+                                        .map((range, rIdx) => {
+                                          const { scoreValue, scoreOwner } =
+                                            range;
+                                          return (
+                                            <>
+                                              {scoreOwner === undefined &&
+                                              matched.playerScore === 0 ? (
                                                 <button
                                                   className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
-                                                  // onClick={() =>
-                                                  //   handleScore(
-                                                  //     rIdx,
-                                                  //     bIdx,
-                                                  //     playerNumber?.toString(),
-                                                  //     scoreValue
-                                                  //   )
-                                                  // }
+                                                  onClick={() =>
+                                                    handleScore(
+                                                      playerUid,
+                                                      scoreValue,
+                                                      rIdx,
+                                                      sIdx,
+                                                      "score"
+                                                    )
+                                                  }
                                                 >
                                                   {scoreValue}
                                                 </button>
-                                              )}
-                                            {scoreOwner ===
-                                              playerNumber?.toString() &&
-                                              playerScore === scoreValue && (
+                                              ) : scoreOwner === playerUid &&
+                                                matched.playerScore ===
+                                                  scoreValue ? (
                                                 <button
-                                                  className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-500 text-3xl text-gray-100"
-                                                  // onClick={() =>
-                                                  //   handleUnScore(
-                                                  //     rIdx,
-                                                  //     bIdx,
-                                                  //     playerNumber.toString(),
-                                                  //     scoreValue
-                                                  //   )
-                                                  // }
+                                                  className="flex w-full h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-800 text-3xl text-gray-100"
+                                                  onClick={() =>
+                                                    handleScore(
+                                                      playerUid,
+                                                      scoreValue,
+                                                      rIdx,
+                                                      sIdx,
+                                                      "unScore"
+                                                    )
+                                                  }
                                                 >
-                                                  <AiFillLock />
+                                                  <div className="flex w-18 h-18 rounded-full border border-gray-100 p-2">
+                                                    <AiFillLock />
+                                                  </div>
                                                 </button>
-                                              )}
-                                          </>
-                                        );
-                                      })}
-                                  {/* {playerScore >= 100 ? (
-                            <button
-                              className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-600 text-2xl text-gray-200"
-                              onClick={() => handleUnExceptScore(bIdx)}
-                            >
-                              <span className="text-base">복원</span>
-                            </button>
-                          ) : (
-                            <button
-                              className="flex ml-10 w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-600 text-2xl text-gray-200"
-                              onClick={() => handleExceptScore(bIdx, 100)}
-                            >
-                              <span className="text-base">제외</span>
-                            </button>
-                          )} */}
+                                              ) : scoreOwner !== playerUid &&
+                                                playerScore === 0 ? (
+                                                <div className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600 cursor-not-allowed">
+                                                  <div className="flex w-18 h-18 rounded-full border-blue-400 p-2 text-blue-400">
+                                                    <AiFillMinusCircle />
+                                                  </div>
+                                                </div>
+                                              ) : null}
+                                            </>
+                                          );
+                                        })}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                      </div>
                     </div>
-                  </div>
-                </>
-              ))}
+                  </>
+                ))}
 
               <div className="flex w-full justify-start items-center flex-col gap-y-2">
                 <div className="flex h-full rounded-md gap-y-2 flex-col w-full"></div>
@@ -293,20 +571,21 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
                     </div>
                   </div>
                   <div className="flex w-1/2 h-20 py-2 justify-center items-center">
-                    <button
-                      className="w-full h-full bg-blue-500 text-white text-xl font-bold rounded-lg"
-                      // onClick={() =>
-                      //   addScore(
-                      //     {
-                      //       ...currentScoreBoard,
-                      //       judgeSignature: judgeSign,
-                      //     },
-                      //     location.state.collectionInfo
-                      //   )
-                      // }
-                    >
-                      제출
-                    </button>
+                    {!validateScoreCard ? (
+                      <button
+                        className="w-full h-full bg-blue-500 text-white text-xl font-bold rounded-lg"
+                        onClick={() => handleSaveScoreCard(currentStageInfo)}
+                      >
+                        제출
+                      </button>
+                    ) : (
+                      <div className="w-full h-full bg-gray-500 text-white text-xl font-bold rounded-lg flex justify-center items-center flex-col">
+                        <span>심사중</span>
+                        <span className="text-base font-normal">
+                          모든 선수 채점이 완료되면 제출버튼이 활성화됩니다.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

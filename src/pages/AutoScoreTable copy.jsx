@@ -119,7 +119,6 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
         playerUid,
         playerIndex,
         judgeUId: judgeInfo.judgeUid,
-
         playerScore: 0,
       };
     });
@@ -128,6 +127,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
       return {
         scoreValue: pIdx + 1,
         scoreOwner: undefined,
+        scoreIndex: pIdx + 1,
       };
     });
     return { scoreCardInfo, scoreRange };
