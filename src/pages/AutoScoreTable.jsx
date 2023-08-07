@@ -18,8 +18,8 @@ import LoadingPage from "./LoadingPage";
 
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [scoreRange, setScoreRange] = useState([]);
-
+  const [scoreRangeArray, setScoreRangeArray] = useState([]);
+  const [scoreCardArray, setScoreCardArray] = useState([]);
   const [stagesAssignInfo, setStagesAssignInfo] = useState({});
   const [judgeInfo, setJudgeInfo] = useState({});
   const [playersFinalArray, setPlayersFinalArray] = useState([]);
@@ -39,17 +39,27 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const navigate = useNavigate();
 
   const handleScoreCardTitle = (grades) => {};
-  const initScoreBoardInfo = (stageInfo, judgeInfo, grades, players) => {
+  const initScoreCard = (stageInfo, judgeInfo, grades, players) => {
     const { stageId, stageNumber } = stageInfo;
-    const { judgeUid, judgeName, judgeTel, judgePromoter, isHead, seatIndex } =
-      judgeInfo;
-    const currentStageInfo = grades.map((grade, gIdx) => {
+    const { judgeUid, judgeName, isHead, seatIndex, contestId } = judgeInfo;
+
+    const scoreCardInfo = grades.map((grade, gIdx) => {
       const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
+
       const matchedPlayers = players
         .filter((player) => player.contestGradeId === gradeId)
         .sort((a, b) => a.playerIndex - b.playerIndex);
 
+      const matchedRange = matchedPlayers.map((player, pIdx) => {
+        return {
+          scoreValue: pIdx + 1,
+          scoreIndex: pIdx,
+          scoreOwner: undefined,
+        };
+      });
+
       return {
+        contestId,
         stageId,
         stageNumber,
         categoryId,
@@ -59,16 +69,13 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
         matchedPlayers,
         judgeUid,
         judgeName,
-        judgeTel,
-        judgePromoter,
+        matchedRange,
         isHead,
         seatIndex,
       };
     });
-
-    console.log(currentStageInfo);
-    setCurrentStageInfo(() => [...currentStageInfo]);
-    setIsLoading(false);
+    console.log(scoreCardInfo);
+    return scoreCardInfo;
   };
 
   const fetchPool = async (playersFinalId) => {
@@ -96,13 +103,16 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     if (playersFinalArray?.length <= 0 && !location) {
       return;
     } else {
-      initScoreBoardInfo(
+      const scoreInfo = initScoreCard(
         location.state.stageInfo,
         location.state.judgeInfo,
         location.state.stageInfo.grades,
         playersFinalArray
       );
+
+      setCurrentStageInfo(() => [...scoreInfo]);
     }
+    setIsLoading(false);
   }, [playersFinalArray]);
 
   useEffect(() => {
@@ -171,80 +181,76 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
                   </div>
                   <div className="flex w-full justify-start items-center flex-col gap-y-2">
                     <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
-                      {stage.matchedPlayers.map((player, pIdx) => (
-                        <div></div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ))}
-
-              <div className="flex w-full justify-start items-center flex-col gap-y-2">
-                <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
-                  {currentScoreBoard?.length > 0 &&
-                    currentScoreBoard.map((scoreboard, bIdx) => {
-                      const { playerNumber, playerScore } = scoreboard;
-                      return (
-                        <div className="flex w-full h-full rounded-md gap-x-2">
-                          <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
-                            <span className="text-4xl font-semibold">
-                              {playerNumber}
-                            </span>
-                          </div>
-                          <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
-                            {playerScore !== 0 && playerScore < 100 && (
-                              <span className="text-4xl">{playerScore}</span>
-                            )}
-                            {playerScore >= 100 && (
-                              <span className="text-4xl">제외</span>
-                            )}
-                          </div>
-                          <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
-                            <div className="flex w-full h-full flex-wrap gap-2">
-                              {scoreRange?.length > 0 &&
-                                scoreRange
-                                  .sort((a, b) => a.playerIndex - b.playerIndex)
-                                  .map((score, rIdx) => {
-                                    const { scoreValue, scoreOwner } = score;
-                                    return (
-                                      <>
-                                        {scoreOwner === undefined &&
-                                          playerScore === 0 && (
-                                            <button
-                                              className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
-                                              // onClick={() =>
-                                              //   handleScore(
-                                              //     rIdx,
-                                              //     bIdx,
-                                              //     playerNumber?.toString(),
-                                              //     scoreValue
-                                              //   )
-                                              // }
-                                            >
-                                              {scoreValue}
-                                            </button>
-                                          )}
-                                        {scoreOwner ===
-                                          playerNumber?.toString() &&
-                                          playerScore === scoreValue && (
-                                            <button
-                                              className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-500 text-3xl text-gray-100"
-                                              // onClick={() =>
-                                              //   handleUnScore(
-                                              //     rIdx,
-                                              //     bIdx,
-                                              //     playerNumber.toString(),
-                                              //     scoreValue
-                                              //   )
-                                              // }
-                                            >
-                                              <AiFillLock />
-                                            </button>
-                                          )}
-                                      </>
-                                    );
-                                  })}
-                              {/* {playerScore >= 100 ? (
+                      {stage.matchedPlayers?.length > 0 &&
+                        stage.matchedPlayers.map((matched, bIdx) => {
+                          const { playerNumber, playerScore, matchedRange } =
+                            matched;
+                          return (
+                            <div className="flex w-full h-full rounded-md gap-x-2">
+                              <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
+                                <span className="text-4xl font-semibold">
+                                  {playerNumber}
+                                </span>
+                              </div>
+                              <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                                {playerScore !== 0 && playerScore < 100 && (
+                                  <span className="text-4xl">
+                                    {playerScore}
+                                  </span>
+                                )}
+                                {playerScore >= 100 && (
+                                  <span className="text-4xl">제외</span>
+                                )}
+                              </div>
+                              <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
+                                <div className="flex w-full h-full flex-wrap gap-2">
+                                  {matchedRange?.length > 0 &&
+                                    matchedRange
+                                      .sort(
+                                        (a, b) => a.playerIndex - b.playerIndex
+                                      )
+                                      .map((score, rIdx) => {
+                                        const { scoreValue, scoreOwner } =
+                                          score;
+                                        return (
+                                          <>
+                                            {scoreOwner === undefined &&
+                                              playerScore === 0 && (
+                                                <button
+                                                  className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
+                                                  // onClick={() =>
+                                                  //   handleScore(
+                                                  //     rIdx,
+                                                  //     bIdx,
+                                                  //     playerNumber?.toString(),
+                                                  //     scoreValue
+                                                  //   )
+                                                  // }
+                                                >
+                                                  {scoreValue}
+                                                </button>
+                                              )}
+                                            {scoreOwner ===
+                                              playerNumber?.toString() &&
+                                              playerScore === scoreValue && (
+                                                <button
+                                                  className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-500 text-3xl text-gray-100"
+                                                  // onClick={() =>
+                                                  //   handleUnScore(
+                                                  //     rIdx,
+                                                  //     bIdx,
+                                                  //     playerNumber.toString(),
+                                                  //     scoreValue
+                                                  //   )
+                                                  // }
+                                                >
+                                                  <AiFillLock />
+                                                </button>
+                                              )}
+                                          </>
+                                        );
+                                      })}
+                                  {/* {playerScore >= 100 ? (
                             <button
                               className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-600 text-2xl text-gray-200"
                               onClick={() => handleUnExceptScore(bIdx)}
@@ -259,12 +265,18 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
                               <span className="text-base">제외</span>
                             </button>
                           )} */}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </>
+              ))}
+
+              <div className="flex w-full justify-start items-center flex-col gap-y-2">
+                <div className="flex h-full rounded-md gap-y-2 flex-col w-full"></div>
                 <div className="flex w-full h-auto py-2">
                   <div className="flex w-1/2 h-24 p-2">
                     <div className="flex rounded-lg">
