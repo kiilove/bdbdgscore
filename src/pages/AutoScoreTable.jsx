@@ -22,18 +22,20 @@ import { CurrentContestContext } from "../contexts/CurrentContestContext";
 import LoadingPage from "./LoadingPage";
 import { generateUUID } from "../functions/functions";
 import AddedModal from "../messageBox/AddedModal";
+import { Modal } from "@mui/material";
+import CompareSelection from "../modals/CompareSelection";
+import CompareRequest from "../modals/CompareRequest";
+import CompareSetting from "../modals/CompareSetting";
 
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [scoreRangeArray, setScoreRangeArray] = useState([]);
-  const [scoreCardArray, setScoreCardArray] = useState([]);
-  const [stagesAssignInfo, setStagesAssignInfo] = useState({});
   const [judgeInfo, setJudgeInfo] = useState({});
   const [playersFinalArray, setPlayersFinalArray] = useState([]);
-  const [nextStagesAssignInfo, setNextStagesAssignInfo] = useState({});
-  const [nextJudgeInfo, setNextJudgeInfo] = useState({});
+
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareSettingOpen, setCompareSettingOpen] = useState(false);
 
   const [msgOpen, setMsgOpen] = useState(false);
   const [message, setMessage] = useState({
@@ -44,10 +46,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const [validateScoreCard, setValidateScoreCard] = useState(true);
 
   const [currentStageInfo, setCurrentStageInfo] = useState([]);
-  const [stagePlayers, setStagePlayers] = useState([]);
 
-  const [isHolding, setIsHolding] = useState(false);
-  const [currentScoreBoard, setCurrentScoreBoard] = useState([]);
   const { currentContest } = useContext(CurrentContestContext);
 
   const fetchPlayersFinal = useFirestoreGetDocument("contest_players_final");
@@ -142,6 +141,8 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
         gradeId,
         gradeTitle,
         matchedPlayers,
+        originalPlayers: matchedPlayers,
+        compareList: [],
         judgeUid,
         judgeName,
         matchedRange,
@@ -413,17 +414,36 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
                 onCancel={() => setMsgOpen(false)}
                 onConfirm={() => setMsgOpen(false)}
               />
+              <Modal
+                open={compareSettingOpen}
+                onClose={() => setCompareSettingOpen(false)}
+              >
+                <CompareSetting
+                  stageInfo={location.state.stageInfo}
+                  contestId={location.state.contestId}
+                  compareList={currentStageInfo[0]?.compareList}
+                  prevMatched={currentStageInfo[0]?.matchedPlayers}
+                  fullMatched={currentStageInfo[0]?.originalPlayers}
+                  setClose={setCompareSettingOpen}
+                />
+              </Modal>
+
               <div className="flex w-1/3 items-start flex-col">
                 <div className="flex w-32 h-auto py-2 justify-center items-center text-lg">
-                  모드
+                  채점모드
                 </div>
                 <div className="flex w-32 h-auto py-2 justify-center items-center text-xl font-semibold">
-                  일반
+                  일반심사
                 </div>
                 <div className="flex w-32 h-auto py-2 justify-center items-center ">
-                  <button className="w-auto h-auto px-5 py-2 bg-blue-500 font-semibold rounded-lg text-white text-sm">
-                    비교심사요청
-                  </button>
+                  {currentStageInfo[0].isHead && (
+                    <button
+                      className="w-auto h-auto px-5 py-2 bg-blue-500 font-semibold rounded-lg text-white text-sm"
+                      onClick={() => setCompareSettingOpen(true)}
+                    >
+                      비교심사설정
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="flex w-1/3 justify-center">
@@ -439,7 +459,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
               </div>
             </div>
             <div className="flex justify-start flex-col w-full">
-              {currentStageInfo?.length > 1 &&
+              {currentStageInfo?.length >= 1 &&
                 currentStageInfo.map((stage, sIdx) => (
                   <>
                     <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">

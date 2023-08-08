@@ -155,6 +155,7 @@ export function useFirebaseRealtimeUpdateData() {
   const [error, setError] = useState(null);
 
   const updateData = async (collectionName, id, newData) => {
+    console.log(newData);
     try {
       setLoading(true);
 
