@@ -10,6 +10,7 @@ import { BasicDataProvider } from "./contexts/BasicDataContext";
 import ScoreLogin from "./pages/ScoreLogin";
 import AutoScoreTable from "./pages/AutoScoreTable";
 import ScoreLoginAuto from "./pages/ScoreLoginAuto";
+import CompareVote from "./pages/CompareVote";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
             <Route path="/scorelogin" element={<ScoreLogin />} />
             <Route path="/scoreloginauto" element={<ScoreLoginAuto />} />
             <Route path="/autoscoretable" element={<AutoScoreTable />} />
+            <Route path="/comparevote" element={<CompareVote />} />
           </Routes>
         </BrowserRouter>
       </CurrentContestProvider>

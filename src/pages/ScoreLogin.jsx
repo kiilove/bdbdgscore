@@ -90,8 +90,9 @@ const ScoreLogin = () => {
   useEffect(() => {
     if (contests?.contests?.id) {
       // Debounce the getDocument call to once every second
+
       const debouncedGetDocument = debounce(
-        () => getDocument("currentStage", contests.contests.id),
+        () => getDocument(`currentStage/${contests.contests.id}`),
         2000
       );
       debouncedGetDocument();

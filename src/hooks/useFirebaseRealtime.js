@@ -15,11 +15,11 @@ export function useFirebaseRealtimeQuery() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  async function getDocuments(collectionName) {
+  async function getDocuments(collectionInfo) {
     try {
       setLoading(true);
 
-      const dataRef = ref(database, collectionName);
+      const dataRef = ref(database, collectionInfo);
       const snapshot = await get(dataRef);
 
       if (snapshot.exists()) {
@@ -80,11 +80,11 @@ export function useFirebaseRealtimeGetDocument() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  async function getDocument(collectionName, documentId) {
+  async function getDocument(collectionInfo) {
     try {
       setLoading(true);
 
-      const dataRef = ref(database, `${collectionName}/${documentId}`);
+      const dataRef = ref(database, `${collectionInfo}`);
       const snapshot = await get(dataRef);
 
       if (snapshot.exists()) {
@@ -118,18 +118,18 @@ export function useFirebaseRealtimeAddData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const addData = async (collectionName, newData, key = null) => {
+  const addData = async (collectionInfo, newData, key = null) => {
     try {
       setLoading(true);
 
       let dataRef;
       if (key) {
         // If key is provided, use it
-        dataRef = ref(database, `${collectionName}/${key}`);
+        dataRef = ref(database, `${collectionInfo}/${key}`);
         await set(dataRef, newData);
       } else {
         // If no key is provided, let Firebase generate it
-        dataRef = push(ref(database, collectionName));
+        dataRef = push(ref(database, collectionInfo));
         await set(dataRef, newData);
       }
 
@@ -154,12 +154,12 @@ export function useFirebaseRealtimeUpdateData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const updateData = async (collectionName, id, newData) => {
+  const updateData = async (collectionInfo, newData, id = "noId") => {
     console.log(newData);
     try {
       setLoading(true);
 
-      const dataRef = ref(database, `${collectionName}/${id}`);
+      const dataRef = ref(database, collectionInfo);
       await set(dataRef, newData);
 
       setData({ id, ...newData });
@@ -179,9 +179,9 @@ export function useFirebaseRealtimeUpdateData() {
 export function useFirebaseRealtimeDeleteData() {
   const [data, setData] = useState(null);
 
-  const deleteData = async (collectionName, id) => {
+  const deleteData = async (collectionInfo, id) => {
     try {
-      const dataRef = ref(database, `${collectionName}/${id}`);
+      const dataRef = ref(database, `${collectionInfo}/${id}`);
       await remove(dataRef);
 
       setData(id);

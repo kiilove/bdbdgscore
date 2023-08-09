@@ -1,14 +1,10 @@
 import React, { useEffect } from "react";
 import { useState } from "react";
-import LoadingPage from "../pages/LoadingPage";
+import LoadingPage from "./LoadingPage";
+import { useLocation } from "react-router-dom";
 
-const CompareSelection = ({
-  stageInfo,
-  setClose,
-  fullMatched,
-  prevMatched,
-  compareList,
-}) => {
+const CompareVote = () => {
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [originalFullMatchedPlayers, setOriginalFullMatchedPlayers] = useState(
     []
@@ -20,15 +16,23 @@ const CompareSelection = ({
   const [prevMatchedPlayers, setPrevMatchedPlayers] = useState([]);
   const [compareArray, setCompareArray] = useState([]);
   const [votedPlayers, setVotedPlayers] = useState([]);
-  console.log(fullMatched);
+  const [stageInfo, setStageInfo] = useState({});
 
   const initMatched = () => {
+    const {
+      fullMatched,
+      prevMatched,
+      compareList,
+      setClose,
+      stageInfo: stateStageInfo,
+    } = location.state;
     const promises = [
       setFullMatchedPlayers(fullMatched),
       setOriginalFullMatchedPlayers(fullMatched),
       setPrevMatchedPlayers(prevMatched),
       setOriginalPrevMatchedPlayers(prevMatched),
       setCompareArray(compareList),
+      setStageInfo(stateStageInfo),
       setIsLoading(false),
     ];
     Promise.all(promises);
@@ -102,8 +106,10 @@ const CompareSelection = ({
   };
 
   useEffect(() => {
-    initMatched();
-  }, []);
+    if (location.state) {
+      initMatched();
+    }
+  }, [location.state]);
 
   return (
     <>
@@ -139,32 +145,37 @@ const CompareSelection = ({
                   </div>
                   <div className="flex w-full h-auto p-2 justify-start items-center">
                     {votedPlayers?.length > 0 ? (
-                      <div className="flex w-5/6 h-auto flex-wrap box-border">
-                        {votedPlayers
-                          .sort((a, b) => a.playerIndex - b.playerIndex)
-                          .map((voted, vIdx) => {
-                            const { playerUid, playerNumber } = voted;
+                      <>
+                        <div className="flex w-5/6 h-auto flex-wrap box-border">
+                          {votedPlayers
+                            .sort((a, b) => a.playerIndex - b.playerIndex)
+                            .map((voted, vIdx) => {
+                              const { playerUid, playerNumber } = voted;
 
-                            return (
-                              <div className="flex w-auto h-auto p-2 flex-col gap-y-2">
-                                <div className="flex w-20 h-20 rounded-lg bg-blue-500 justify-center items-center font-semibold border-2 border-blue-800 flex-col text-4xl text-gray-100">
-                                  {playerNumber}
+                              return (
+                                <div className="flex w-auto h-auto p-2 flex-col gap-y-2">
+                                  <div className="flex w-20 h-20 rounded-lg bg-blue-500 justify-center items-center font-semibold border-2 border-blue-800 flex-col text-4xl text-gray-100">
+                                    {playerNumber}
+                                  </div>
+                                  <button
+                                    className="flex w-20 h-auto justify-center items-center bg-red-500 rounded-lg border-2 border-red-600 text-white text-sm"
+                                    onClick={() =>
+                                      handleUnVotedPlayers(
+                                        playerUid,
+                                        playerNumber
+                                      )
+                                    }
+                                  >
+                                    <span>취소</span>
+                                  </button>
                                 </div>
-                                <button
-                                  className="flex w-20 h-auto justify-center items-center bg-red-500 rounded-lg border-2 border-red-600 text-white text-sm"
-                                  onClick={() =>
-                                    handleUnVotedPlayers(
-                                      playerUid,
-                                      playerNumber
-                                    )
-                                  }
-                                >
-                                  <span>취소</span>
-                                </button>
-                              </div>
-                            );
-                          })}
-                      </div>
+                              );
+                            })}
+                        </div>{" "}
+                        {5 - votedPlayers.length === 0 && (
+                          <div className="flex 1/6">제출</div>
+                        )}
+                      </>
                     ) : (
                       <div className="flex w-full h-auto flex-wrap box-border">
                         <div className="flex w-full h-auto p-2 flex-col gap-y-2 text-lg justify-center items-center">
@@ -173,9 +184,6 @@ const CompareSelection = ({
                       </div>
                     )}
                   </div>
-                  {5 - votedPlayers.length === 0 && (
-                    <div className="flex 1/6">제출</div>
-                  )}
                 </div>
               </div>
             </div>
@@ -216,13 +224,10 @@ const CompareSelection = ({
                     })}
               </div>
             </div>
-            <div className="flex w-full h-fulljustify-center items-center">
-              <button onClick={() => setClose(false)}>닫기</button>
-            </div>
           </>
         )}
       </div>
     </>
   );
 };
-export default CompareSelection;
+export default CompareVote;

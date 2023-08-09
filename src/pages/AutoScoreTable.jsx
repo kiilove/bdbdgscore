@@ -5,6 +5,7 @@ import {
   useFirestoreDeleteData,
   useFirestoreGetDocument,
   useFirestoreQuery,
+  useFirestoreUpdateData,
 } from "../hooks/useFirestores";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -16,16 +17,18 @@ import YbbfLogo from "../assets/img/ybbf_logo.png";
 import { addDoc, collection, where } from "firebase/firestore";
 import CanvasWithImageData from "../components/CanvasWithImageData";
 import { db } from "../firebase";
-import { add } from "date-fns";
-import { useFirebaseRealtimeUpdateData } from "../hooks/useFirebaseRealtime";
+import {
+  useFirebaseRealtimeGetDocument,
+  useFirebaseRealtimeUpdateData,
+} from "../hooks/useFirebaseRealtime";
 import { CurrentContestContext } from "../contexts/CurrentContestContext";
 import LoadingPage from "./LoadingPage";
 import { generateUUID } from "../functions/functions";
 import AddedModal from "../messageBox/AddedModal";
 import { Modal } from "@mui/material";
-import CompareSelection from "../modals/CompareSelection";
-import CompareRequest from "../modals/CompareRequest";
 import CompareSetting from "../modals/CompareSetting";
+import { debounce } from "lodash";
+import ConfirmationModal from "../messageBox/ConfirmationModal";
 
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const location = useLocation();
@@ -43,6 +46,8 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     add: "wait",
     validate: "wait",
   });
+
+  const [compareMsgOpen, setCompareMsgOpen] = useState(false);
   const [validateScoreCard, setValidateScoreCard] = useState(true);
 
   const [currentStageInfo, setCurrentStageInfo] = useState([]);
@@ -53,6 +58,14 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const deleteScoreCard = useFirestoreDeleteData(location.state.collectionName);
   const addScoreCard = useFirestoreAddData(location.state.collectionName);
   const fetchScoreCardQuery = useFirestoreQuery();
+  const {
+    data: compareData,
+    loading,
+    error,
+    getDocument,
+  } = useFirebaseRealtimeGetDocument();
+
+  const updateRealTimeJudgeMessage = useFirebaseRealtimeUpdateData();
 
   // 심사전인지 후인지 체크하여 state값 변경함
   const handleScore = (
@@ -340,7 +353,40 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     });
   };
 
-  const fetchPool = async (playersFinalId) => {
+  const handleComparePopup = () => {
+    setMessage({
+      body: "비교심사가 진행됩니다.",
+      isButton: true,
+      confirmButtonText: "확인",
+    });
+    setCompareMsgOpen(true);
+  };
+
+  const handleUpdateJudgeMessage = async (contestId, seatIndex) => {
+    try {
+      await updateRealTimeJudgeMessage
+        .updateData(
+          `currentStage/${contestId}/compares/judges/${
+            seatIndex - 1
+          }/messageStatus`,
+          "투표중"
+        )
+        .then(() =>
+          navigate("/comparevote", {
+            state: {
+              stageInfo: location.state.stageInfo,
+              contestId: location.state.contestId,
+              prevMatched: currentStageInfo[0].matchedPlayers,
+              fullMatched: currentStageInfo[0].originalPlayers,
+            },
+          })
+        );
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const fetchPool = async (playersFinalId, gradeListId) => {
     if (playersFinalId === undefined) {
       return;
     }
@@ -368,7 +414,10 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     if (!currentContest?.contests) {
       return;
     } else {
-      fetchPool(currentContest.contests.contestPlayersFinalId);
+      fetchPool(
+        currentContest.contests.contestPlayersFinalId,
+        currentContest.contests.contestGradesListId
+      );
     }
   }, [currentContest?.contests]);
 
@@ -397,6 +446,32 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     }
   }, [location]);
 
+  useEffect(() => {
+    console.log(compareData);
+  }, [compareData]);
+
+  useEffect(() => {
+    if (compareData?.isCompared) {
+      handleComparePopup();
+    }
+  }, [compareData?.isCompared]);
+
+  useEffect(() => {
+    if (currentContest?.contests?.id) {
+      // Debounce the getDocument call to once every second
+      const debouncedGetDocument = debounce(
+        () =>
+          getDocument(
+            `currentStage/${currentContest.contests.id}/compares`,
+            currentContest.contests.id
+          ),
+        10000
+      );
+      debouncedGetDocument();
+    }
+    return () => {};
+  }, [getDocument]);
+
   return (
     <>
       {isLoading && (
@@ -421,12 +496,34 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
                 <CompareSetting
                   stageInfo={location.state.stageInfo}
                   contestId={location.state.contestId}
-                  compareList={currentStageInfo[0]?.compareList}
                   prevMatched={currentStageInfo[0]?.matchedPlayers}
                   fullMatched={currentStageInfo[0]?.originalPlayers}
                   setClose={setCompareSettingOpen}
+                  gradeListId={currentContest.contests.contestGradesListId}
                 />
               </Modal>
+
+              {/* <Modal open={compareOpen} onClose={() => setCompareOpen(false)}>
+                <CompareSelection
+                  stageInfo={location.state.stageInfo}
+                  contestId={location.state.contestId}
+                  prevMatched={currentStageInfo[0]?.matchedPlayers}
+                  fullMatched={currentStageInfo[0]?.originalPlayers}
+                  setClose={setCompareOpen}
+                  gradeListId={currentContest.contests.contestGradesListId}
+                />
+              </Modal> */}
+              <ConfirmationModal
+                isOpen={compareMsgOpen}
+                message={message}
+                onCancel={() => setCompareMsgOpen(false)}
+                onConfirm={() =>
+                  handleUpdateJudgeMessage(
+                    currentContest.contests.id,
+                    judgeInfo.seatIndex
+                  )
+                }
+              />
 
               <div className="flex w-1/3 items-start flex-col">
                 <div className="flex w-32 h-auto py-2 justify-center items-center text-lg">
