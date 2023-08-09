@@ -1,11 +1,22 @@
 import React, { useEffect } from "react";
 import { useState } from "react";
 import LoadingPage from "./LoadingPage";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import ConfirmationModal from "../messageBox/ConfirmationModal";
+import { useFirebaseRealtimeUpdateData } from "../hooks/useFirebaseRealtime";
+import { useContext } from "react";
+import { CurrentContestContext } from "../contexts/CurrentContestContext";
+import { replace } from "lodash";
 
 const CompareVote = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [lobbyMsgOpen, setLobbyMsgOpen] = useState(false);
+  const [message, setMessage] = useState({});
+
   const [originalFullMatchedPlayers, setOriginalFullMatchedPlayers] = useState(
     []
   );
@@ -14,17 +25,54 @@ const CompareVote = () => {
   );
   const [fullMatchedPlayers, setFullMatchedPlayers] = useState([]);
   const [prevMatchedPlayers, setPrevMatchedPlayers] = useState([]);
+  const [voteInfo, setVoteInfo] = useState({});
   const [compareArray, setCompareArray] = useState([]);
   const [votedPlayers, setVotedPlayers] = useState([]);
   const [stageInfo, setStageInfo] = useState({});
+  const [judgeSeatIndex, setJudgeSeatIndex] = useState();
+  const { currentContest } = useContext(CurrentContestContext);
 
+  const updateRealtime = useFirebaseRealtimeUpdateData();
+
+  const handleUpdateVote = async (contestId, seatIndex, votedPlayerNumber) => {
+    try {
+      await updateRealtime
+        .updateData(
+          `currentStage/${contestId}/compares/judges/${
+            seatIndex - 1
+          }/votedPlayerNumber`,
+          votedPlayerNumber
+        )
+        .then(
+          async () =>
+            await updateRealtime.updateData(
+              `currentStage/${contestId}/compares/judges/${
+                seatIndex - 1
+              }/messageStatus`,
+              "투표완료"
+            )
+        )
+        .then(() => {
+          setMessage({
+            body: "투표가 완료되었습니다.",
+            body2: "대기화면으로 이동합니다.",
+            isButton: true,
+            confirmButtonText: "확인",
+          });
+          setLobbyMsgOpen(true);
+        });
+    } catch (error) {
+      console.log(error);
+    }
+  };
   const initMatched = () => {
     const {
       fullMatched,
       prevMatched,
       compareList,
-      setClose,
+      voteInfo: realtimeVoteInfo,
       stageInfo: stateStageInfo,
+      seatIndex,
     } = location.state;
     const promises = [
       setFullMatchedPlayers(fullMatched),
@@ -33,13 +81,30 @@ const CompareVote = () => {
       setOriginalPrevMatchedPlayers(prevMatched),
       setCompareArray(compareList),
       setStageInfo(stateStageInfo),
+      setVoteInfo(realtimeVoteInfo),
+      setJudgeSeatIndex(seatIndex),
       setIsLoading(false),
     ];
     Promise.all(promises);
   };
 
+  const handleNavigateLobby = () => {
+    setLobbyMsgOpen(false);
+    navigate("/comparelobby", { replace: true });
+  };
+
   const handleVotedPlayers = (playerUid, playerNumber) => {
     if (!playerUid && !playerNumber) {
+      return;
+    }
+
+    if (votedPlayers.length >= voteInfo.playerLength) {
+      setMessage({
+        body: `${voteInfo.playerLength}명만 선택해주세요`,
+        isButton: true,
+        confirmButtonText: "확인",
+      });
+      setMsgOpen(true);
       return;
     }
     const newVoted = [...votedPlayers];
@@ -119,21 +184,33 @@ const CompareVote = () => {
         </div>
       )}
       <div className="flex w-full h-full flex-col bg-white justify-start items-center p-5 gap-y-2">
-        {!isLoading && (
+        {!isLoading && voteInfo && (
           <>
             <div className="flex text-xl font-bold  bg-blue-300 rounded-lg w-full h-auto justify-center items-center text-gray-700 flex-col p-2 gap-y-2">
+              <ConfirmationModal
+                isOpen={msgOpen}
+                message={message}
+                onCancel={() => setMsgOpen(false)}
+                onConfirm={() => setMsgOpen(false)}
+              />
+              <ConfirmationModal
+                isOpen={lobbyMsgOpen}
+                message={message}
+                onCancel={() => setMsgOpen(false)}
+                onConfirm={() => handleNavigateLobby()}
+              />
               <div className="flex w-full bg-blue-100 rounded-lg py-3 flex-col">
                 <div className="flex w-full h-auto justify-center items-center">
                   <span>
                     {stageInfo.categoryTitle}({stageInfo.grades[0].gradeTitle}){" "}
                   </span>
                   <span className="pl-5 pr-2">
-                    {compareArray?.length + 1 || 1}차
+                    {voteInfo.compareIndex || 1}차
                   </span>
                   <span> 비교심사 투표</span>
                 </div>
                 <div className="flex w-full h-auto justify-center items-center text-3xl font-extrabold">
-                  TOP 5 결정
+                  {voteInfo.playerLength}명을 선택해주세요
                 </div>
               </div>
               <div className="flex w-full h-auto justify-center items-start flex-col text-base font-normal">
@@ -141,7 +218,10 @@ const CompareVote = () => {
                   <div className="flex w-full justify-start items-center">
                     <span>투표한 인원수 : {votedPlayers.length || 0}명</span>
                     <span className="mx-3"> / </span>
-                    <span>남은 인원수 : {5 - votedPlayers.length}명</span>
+                    <span>
+                      남은 인원수 :{" "}
+                      {voteInfo.playerLength - votedPlayers.length}명
+                    </span>
                   </div>
                   <div className="flex w-full h-auto p-2 justify-start items-center">
                     {votedPlayers?.length > 0 ? (
@@ -187,7 +267,7 @@ const CompareVote = () => {
                 </div>
               </div>
             </div>
-            {compareArray?.length > 0 && (
+            {prevMatchedPlayers?.length > 0 && voteInfo.compareIndex > 1 && (
               <div className="flex w-full h-auto p-2 bg-blue-400 rounded-lg flex-col gap-y-2">
                 <div className="flex bg-blue-100 w-full h-auto p-2 rounded-lg">
                   n차 비교심사 명단
@@ -224,6 +304,22 @@ const CompareVote = () => {
                     })}
               </div>
             </div>
+            {voteInfo.playerLength === votedPlayers.length && (
+              <div className="flex w-full h-auto p-2 ">
+                <button
+                  className="w-full h-10 rounded-lg bg-blue-500 text-gray-100 flex justify-center items-center"
+                  onClick={() =>
+                    handleUpdateVote(
+                      currentContest.contests.id,
+                      judgeSeatIndex,
+                      votedPlayers
+                    )
+                  }
+                >
+                  투표
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

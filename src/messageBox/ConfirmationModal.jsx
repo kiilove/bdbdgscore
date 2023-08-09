@@ -16,7 +16,13 @@ const ConfirmationModal = ({ isOpen, onConfirm, onCancel, message }) => {
   };
   return (
     <div>
-      <Modal open={isOpen} onClose={handleCancelClick}>
+      <Modal
+        open={isOpen}
+        onClose={handleCancelClick}
+        onBackdropClick={(event) => {
+          event.stopPropagation();
+        }}
+      >
         <div
           className="flex flex-col w-96 bg-white justify-center items-center absolute top-1/2 left-1/2 gap-y-2 rounded-lg border p-8"
           style={{
@@ -45,7 +51,7 @@ const ConfirmationModal = ({ isOpen, onConfirm, onCancel, message }) => {
               )}
               {message.confirmButtonText && (
                 <button
-                  className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-sm"
+                  className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-sm w-20 h-8"
                   onClick={handleConfirmClick}
                 >
                   {message.confirmButtonText}

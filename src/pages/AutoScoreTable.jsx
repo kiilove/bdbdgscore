@@ -378,6 +378,8 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
               contestId: location.state.contestId,
               prevMatched: currentStageInfo[0].matchedPlayers,
               fullMatched: currentStageInfo[0].originalPlayers,
+              voteInfo: compareData,
+              seatIndex,
             },
           })
         );
@@ -465,7 +467,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
             `currentStage/${currentContest.contests.id}/compares`,
             currentContest.contests.id
           ),
-        10000
+        1000
       );
       debouncedGetDocument();
     }
