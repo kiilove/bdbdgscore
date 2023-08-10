@@ -1,22 +1,17 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useNavigation } from "react-router-dom";
 import {
   useFirestoreAddData,
   useFirestoreDeleteData,
   useFirestoreGetDocument,
   useFirestoreQuery,
-  useFirestoreUpdateData,
 } from "../hooks/useFirestores";
-import { v4 as uuidv4 } from "uuid";
-import {
-  AiFillLock,
-  AiFillMinusCircle,
-  AiFillMinusSquare,
-} from "react-icons/ai";
+
+import { AiFillLock, AiFillMinusCircle } from "react-icons/ai";
 import YbbfLogo from "../assets/img/ybbf_logo.png";
-import { addDoc, collection, where } from "firebase/firestore";
+import { where } from "firebase/firestore";
 import CanvasWithImageData from "../components/CanvasWithImageData";
-import { db } from "../firebase";
+
 import {
   useFirebaseRealtimeGetDocument,
   useFirebaseRealtimeUpdateData,
@@ -33,6 +28,7 @@ import ConfirmationModal from "../messageBox/ConfirmationModal";
 const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   const location = useLocation();
   const navigate = useNavigate();
+
   const [isLoading, setIsLoading] = useState(true);
   const [judgeInfo, setJudgeInfo] = useState({});
   const [playersFinalArray, setPlayersFinalArray] = useState([]);
@@ -93,7 +89,6 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
       (f) => f.playerUid === playerUid
     );
 
-    console.log(playerArrayIndex);
     const newPlayer = {
       ...newMathedPlayers[playerArrayIndex],
       playerScore: newScoreValue,
@@ -115,7 +110,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     };
 
     newCurrentStageInfo.splice(stageInfoIndex, 1, { ...newStageInfo });
-    console.log(newCurrentStageInfo);
+
     setCurrentStageInfo([...newCurrentStageInfo]);
   };
 
@@ -202,6 +197,33 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
 
   //currentStageInfo를 받아서 matchedPlayers를 맵으로 돌면서 각각 문서를 작성함
   // 작성전에 deletePreScoreCard함수를 호출해서 이중으로 작성을 방지함
+  const hadleAddedUpdateState = async (contestId, seatIndex, actionType) => {
+    let currentJudge = {};
+    if (actionType === "success") {
+      currentJudge = { isLogined: true, isEnd: true, seatIndex, errors: "" };
+    }
+
+    if (actionType === "fail") {
+      currentJudge = {
+        isLogined: true,
+        isEnd: true,
+        seatIndex,
+        errors: "저장오류",
+      };
+    }
+    try {
+      await updateRealTimeJudgeMessage
+        .updateData(
+          `currentStage/${contestId}/judges/${seatIndex - 1}`,
+          currentJudge
+        )
+        .then(() => {
+          setMsgOpen(false);
+        });
+    } catch (error) {
+      console.log(error);
+    }
+  };
   const handleSaveScoreCard = async (propData) => {
     let scoreCardsArray = [];
 
@@ -227,6 +249,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
           gradeTitle,
           judgeUid,
           judgeName,
+          seatIndex,
           matchedPlayers,
         } = data;
 
@@ -237,6 +260,7 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
             playerName,
             playerGym,
             playerScore,
+            playerIndex,
           } = match;
 
           const newInfo = {
@@ -247,10 +271,12 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
             gradeTitle,
             judgeUid,
             judgeName,
+            seatIndex,
             playerNumber,
             playerUid,
             playerName,
             playerGym,
+            playerIndex,
             playerScore: parseInt(playerScore),
           };
 
@@ -395,7 +421,11 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
     try {
       await fetchPlayersFinal
         .getDocument(playersFinalId)
-        .then((data) => setPlayersFinalArray(() => [...data.players]));
+        .then((data) =>
+          setPlayersFinalArray(() => [
+            ...data.players.filter((f) => f.playerNoShow === false),
+          ])
+        );
     } catch (error) {
       console.log(error);
     }
@@ -440,13 +470,12 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   }, [playersFinalArray]);
 
   useEffect(() => {
-    console.log(location);
-    if (!location?.state) {
+    if (!location.state) {
       return;
-    } else {
-      setJudgeInfo(location.state.judgeInfo);
     }
-  }, [location]);
+
+    setJudgeInfo(location.state.judgeInfo);
+  }, [location, validateScoreCard]);
 
   useEffect(() => {
     console.log(compareData);
@@ -488,8 +517,20 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
               <AddedModal
                 isOpen={msgOpen}
                 message={message}
-                onCancel={() => setMsgOpen(false)}
-                onConfirm={() => setMsgOpen(false)}
+                onCancel={() =>
+                  hadleAddedUpdateState(
+                    location.state.contestId,
+                    currentStageInfo[0].seatIndex,
+                    "fail"
+                  )
+                }
+                onConfirm={() =>
+                  hadleAddedUpdateState(
+                    location.state.contestId,
+                    currentStageInfo[0].seatIndex,
+                    "success"
+                  )
+                }
               />
               <Modal
                 open={compareSettingOpen}

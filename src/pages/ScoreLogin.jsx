@@ -43,15 +43,14 @@ const ScoreLogin = () => {
     }
   };
 
-  const handleUpdateState = async (collectionName, documentId, seatIndex) => {
+  const handleUpdateState = async (collectionInfo, seatIndex) => {
     const currentJudge = {
       isLogined: true,
       isEnd: false,
       seatIndex,
     };
     const updatedData = await updateRealtimeJudge.updateData(
-      collectionName,
-      documentId,
+      collectionInfo,
       currentJudge
     );
     console.log("Updated Data:", updatedData);
@@ -59,8 +58,7 @@ const ScoreLogin = () => {
 
   const handleJudgeLogin = async (collectionName, documentId, seatIndex) => {
     await handleUpdateState(
-      `${collectionName}/${documentId}/judges`,
-      seatIndex - 1,
+      `${collectionName}/${documentId}/judges/${seatIndex - 1}`,
       seatIndex
     ).then(() =>
       navigate("/autoscoretable", {
@@ -75,6 +73,23 @@ const ScoreLogin = () => {
         },
       })
     );
+  };
+  const handleJudgeLogOut = async (collectionName, documentId, seatIndex) => {
+    const collectionInfo = `${collectionName}/${documentId}/judges/${
+      seatIndex - 1
+    }`;
+    const currentJudge = {
+      isLogined: false,
+      isEnd: false,
+      seatIndex,
+    };
+    try {
+      await updateRealtimeJudge
+        .updateData(collectionInfo, currentJudge)
+        .then(() => console.log("logouted"));
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   useEffect(() => {
