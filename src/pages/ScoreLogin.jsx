@@ -43,6 +43,20 @@ const ScoreLogin = () => {
     }
   };
 
+  const handleUpdateStateInit = async (collectionInfo, seatIndex) => {
+    console.log(collectionInfo);
+    const currentJudge = {
+      isLogined: false,
+      isEnd: false,
+      seatIndex,
+    };
+    const updatedData = await updateRealtimeJudge.updateData(
+      collectionInfo,
+      currentJudge
+    );
+    console.log("Updated Data:", updatedData, seatIndex);
+  };
+
   const handleUpdateState = async (collectionInfo, seatIndex) => {
     const currentJudge = {
       isLogined: true,
@@ -74,23 +88,6 @@ const ScoreLogin = () => {
       })
     );
   };
-  const handleJudgeLogOut = async (collectionName, documentId, seatIndex) => {
-    const collectionInfo = `${collectionName}/${documentId}/judges/${
-      seatIndex - 1
-    }`;
-    const currentJudge = {
-      isLogined: false,
-      isEnd: false,
-      seatIndex,
-    };
-    try {
-      await updateRealtimeJudge
-        .updateData(collectionInfo, currentJudge)
-        .then(() => console.log("logouted"));
-    } catch (error) {
-      console.log(error);
-    }
-  };
 
   useEffect(() => {
     const getContests = JSON.parse(localStorage.getItem("currentContest"));
@@ -98,6 +95,10 @@ const ScoreLogin = () => {
     if (!getContests) {
       navigate("/adminlogin", { replace: true });
     } else {
+      const collectionInfo = `currentStage/${getContests.contests.id}/judges/${
+        getContests.machineId - 1
+      }/`;
+      handleUpdateStateInit(collectionInfo, getContests.machineId);
       setContests(getContests);
     }
   }, []);

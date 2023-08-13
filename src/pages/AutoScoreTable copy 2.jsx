@@ -115,7 +115,6 @@ const AutoScoreTable = (currentStageId, currentJudgeUid) => {
   };
 
   // 비교심사등을 위해서 함수 따로 분리되었음
-  // 여기서 비교심사 명단 분기시켜야함 23.08.13
   const makeScoreCard = (stageInfo, judgeInfo, grades, players) => {
     const { stageId, stageNumber } = stageInfo;
     const { judgeUid, judgeName, isHead, seatIndex, contestId } = judgeInfo;

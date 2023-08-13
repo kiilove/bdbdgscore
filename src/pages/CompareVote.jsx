@@ -7,6 +7,10 @@ import { useFirebaseRealtimeUpdateData } from "../hooks/useFirebaseRealtime";
 import { useContext } from "react";
 import { CurrentContestContext } from "../contexts/CurrentContestContext";
 import { replace } from "lodash";
+import {
+  useFirestoreGetDocument,
+  useFirestoreUpdateData,
+} from "../hooks/useFirestores";
 
 const CompareVote = () => {
   const location = useLocation();
@@ -26,6 +30,7 @@ const CompareVote = () => {
   const [fullMatchedPlayers, setFullMatchedPlayers] = useState([]);
   const [prevMatchedPlayers, setPrevMatchedPlayers] = useState([]);
   const [voteInfo, setVoteInfo] = useState({});
+  const [compareList, setCompareList] = useState({});
   const [compareArray, setCompareArray] = useState([]);
   const [votedPlayers, setVotedPlayers] = useState([]);
   const [stageInfo, setStageInfo] = useState({});
@@ -33,8 +38,15 @@ const CompareVote = () => {
   const { currentContest } = useContext(CurrentContestContext);
 
   const updateRealtime = useFirebaseRealtimeUpdateData();
+  const updateComparesList = useFirestoreUpdateData("contest_compares_list");
+  const fetchComparesList = useFirestoreGetDocument("contest_compares_list");
 
-  const handleUpdateVote = async (contestId, seatIndex, votedPlayerNumber) => {
+  const handleUpdateVote = async (
+    contestId,
+    compareListId,
+    seatIndex,
+    votedPlayerNumber
+  ) => {
     try {
       await updateRealtime
         .updateData(
@@ -66,10 +78,10 @@ const CompareVote = () => {
     }
   };
   const initMatched = () => {
+    console.log(location.state);
     const {
       fullMatched,
       prevMatched,
-      compareList,
       voteInfo: realtimeVoteInfo,
       stageInfo: stateStageInfo,
       seatIndex,
@@ -79,7 +91,6 @@ const CompareVote = () => {
       setOriginalFullMatchedPlayers(fullMatched),
       setPrevMatchedPlayers(prevMatched),
       setOriginalPrevMatchedPlayers(prevMatched),
-      setCompareArray(compareList),
       setStageInfo(stateStageInfo),
       setVoteInfo(realtimeVoteInfo),
       setJudgeSeatIndex(seatIndex),
@@ -311,6 +322,7 @@ const CompareVote = () => {
                   onClick={() =>
                     handleUpdateVote(
                       currentContest.contests.id,
+                      currentContest.contests.contestComparesListId,
                       judgeSeatIndex,
                       votedPlayers
                     )
