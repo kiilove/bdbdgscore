@@ -90,9 +90,9 @@ const Setting = () => {
       <div className="flex w-full justify-end ">
         <button
           className="mr-5 px-2 w-auto h-10 bg-blue-200"
-          onClick={() => navigate("/scorelogin")}
+          onClick={() => navigate("/lobby")}
         >
-          심판로그인으로 이동
+          로비로 이동
         </button>
       </div>
     </div>

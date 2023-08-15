@@ -30,8 +30,9 @@ const AutoScoreTable = () => {
   const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [contestInfo, setContestInfo] = useState({});
-  const [currentJudgeInfo, setCurrentJudgeInfo] = useState({});
+  const [isHolding, setIsHolding] = useState(false);
+  const [judgeInfo, setJudgeInfo] = useState({});
+  const [playersFinalArray, setPlayersFinalArray] = useState([]);
   const [topPlayersArray, setTopPlayersArray] = useState([]);
 
   const [compareOpen, setCompareOpen] = useState(false);
@@ -51,12 +52,9 @@ const AutoScoreTable = () => {
 
   const { currentContest } = useContext(CurrentContestContext);
 
-  const deleteScoreCard = useFirestoreDeleteData(
-    location.state.contestInfo.collectionName
-  );
-  const addScoreCard = useFirestoreAddData(
-    location.state.contestInfo.collectionName
-  );
+  const fetchPlayersFinal = useFirestoreGetDocument("contest_players_final");
+  const deleteScoreCard = useFirestoreDeleteData(location.state.collectionName);
+  const addScoreCard = useFirestoreAddData(location.state.collectionName);
   const fetchScoreCardQuery = useFirestoreQuery();
   const {
     data: compareData,
@@ -67,120 +65,8 @@ const AutoScoreTable = () => {
 
   const updateRealTimeJudgeMessage = useFirebaseRealtimeUpdateData();
 
-  //리팩토리 v2
-  const handleScore = (playerUid, scoreValue, stageInfoIndex, actionType) => {
-    const newScoreValue = actionType === "unScore" ? 0 : scoreValue;
-    const newPlayerUid = actionType === "unScore" ? undefined : playerUid;
-    const newCurrentStageInfo = [...currentStageInfo];
-    const stage = newCurrentStageInfo[stageInfoIndex];
-
-    const updateArray = (arr, findKey, findValue, updatedValues) => {
-      const index = arr.findIndex((item) => item[findKey] === findValue);
-      if (index !== -1) {
-        arr[index] = { ...arr[index], ...updatedValues };
-      }
-    };
-
-    updateArray(stage.originalPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-    updateArray(stage.matchedTopRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.matchedNormalRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.originalRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.matchedTopPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-    updateArray(stage.matchedNormalPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-
-    setCurrentStageInfo(newCurrentStageInfo);
-    console.log(newCurrentStageInfo);
-  };
-
-  //리팩토리 v1
-  const handleScoreReV1 = (
-    playerUid,
-    scoreValue,
-    stageInfoIndex,
-    actionType
-  ) => {
-    const newCurrentStageInfo = [...currentStageInfo];
-    const currentStage = newCurrentStageInfo[stageInfoIndex];
-    const {
-      originalPlayers,
-      matchedTopPlayers,
-      matchedNormalPlayers,
-      matchedTopRange,
-      matchedNormalRange,
-    } = currentStage;
-
-    let newScoreValue = actionType === "unScore" ? 0 : scoreValue;
-    let newPlayerUid = actionType === "unScore" ? undefined : playerUid;
-
-    const updatePlayerScore = (playersArray, index, value) => {
-      const newPlayer = { ...playersArray[index], playerScore: value };
-      playersArray.splice(index, 1, newPlayer);
-    };
-
-    const updateRangeScoreOwner = (rangeArray, index, uid) => {
-      const newValue = { ...rangeArray[index], scoreOwner: uid };
-      rangeArray.splice(index, 1, newValue);
-    };
-
-    const playerIndex = originalPlayers.findIndex(
-      (player) => player.playerUid === playerUid
-    );
-    updatePlayerScore(originalPlayers, playerIndex, newScoreValue);
-
-    const topRangeIndex = matchedTopRange.findIndex(
-      (range) => range.scoreValue === scoreValue
-    );
-    const normalRangeIndex = matchedNormalRange.findIndex(
-      (range) => range.scoreValue === scoreValue
-    );
-
-    if (topRangeIndex !== -1) {
-      updateRangeScoreOwner(matchedTopRange, topRangeIndex, newPlayerUid);
-      const topPlayerIndex = matchedTopPlayers.findIndex(
-        (player) => player.playerUid === playerUid
-      );
-      updatePlayerScore(matchedTopPlayers, topPlayerIndex, newScoreValue);
-    }
-
-    if (normalRangeIndex !== -1) {
-      updateRangeScoreOwner(matchedNormalRange, normalRangeIndex, newPlayerUid);
-      const normalPlayerIndex = matchedNormalPlayers.findIndex(
-        (player) => player.playerUid === playerUid
-      );
-      updatePlayerScore(matchedNormalPlayers, normalPlayerIndex, newScoreValue);
-    }
-
-    newCurrentStageInfo[stageInfoIndex] = {
-      ...currentStage,
-      originalPlayers,
-      matchedTopPlayers,
-      matchedNormalPlayers,
-      matchedTopRange,
-      matchedNormalRange,
-    };
-
-    setCurrentStageInfo(newCurrentStageInfo);
-  };
-
   // 심사전인지 후인지 체크하여 state값 변경함
-  const handleScoreOld = (
-    playerUid,
-    scoreValue,
-    stageInfoIndex,
-    actionType
-  ) => {
+  const handleScore = (playerUid, scoreValue, stageInfoIndex, actionType) => {
     let newScoreValue = scoreValue;
     let newPlayerUid = playerUid;
 
@@ -196,6 +82,9 @@ const AutoScoreTable = () => {
       ...newCurrentStageInfo[stageInfoIndex].matchedTopPlayers,
     ];
 
+    if (newMatchedTopPlayers.length > 0) {
+      setIsHolding(true);
+    }
     const newMatchedNormalPlayers = [
       ...newCurrentStageInfo[stageInfoIndex].matchedNormalPlayers,
     ];
@@ -274,6 +163,125 @@ const AutoScoreTable = () => {
     setCurrentStageInfo([...newCurrentStageInfo]);
   };
 
+  // 비교심사등을 위해서 함수 따로 분리되었음
+  // 여기서 비교심사 명단 분기시켜야함 23.08.13
+  const makeScoreCard = (stageInfo, judgeInfo, grades, players) => {
+    const { stageId, stageNumber } = stageInfo;
+    const { judgeUid, judgeName, isHead, seatIndex, contestId } = judgeInfo;
+
+    const scoreCardInfo = grades.map((grade, gIdx) => {
+      let comparePlayers = [];
+      let matchedTopPlayers = [];
+      let matchedNormalPlayers = [];
+      let matchedTopRange = [];
+      let matchedNormalRange = [];
+
+      const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
+      if (topPlayersArray.length > 0) {
+        comparePlayers = [...topPlayersArray];
+      }
+      const filterPlayers = players
+        .filter((player) => player.contestGradeId === gradeId)
+        .sort((a, b) => a.playerIndex - b.playerIndex);
+
+      const matchedOriginalPlayers = filterPlayers.map((player, pIdx) => {
+        const newPlayers = { ...player, playerScore: 0 };
+
+        return newPlayers;
+      });
+      const matchedOriginalRange = matchedOriginalPlayers.map(
+        (player, pIdx) => {
+          return {
+            scoreValue: pIdx + 1,
+            scoreIndex: pIdx,
+            scoreOwner: undefined,
+          };
+        }
+      );
+
+      const filterTopPlayers = filterPlayers.filter((fp) =>
+        comparePlayers.some((cp) => cp.playerNumber === fp.playerNumber)
+      );
+      const filterNormalPlayers = filterPlayers.filter((fp) =>
+        comparePlayers.some((cp) => cp.playerNumber !== fp.playerNumber)
+      );
+
+      //비교심사 선정 인원있는 경우 비교심사대상 인원을 top으로 배정
+      //topRange도 같이 배정
+      if (filterTopPlayers?.length > 0) {
+        const matchedPlayers = filterTopPlayers.map((player, pIdx) => {
+          const newPlayers = { ...player, playerScore: 0 };
+
+          return newPlayers;
+        });
+        matchedTopPlayers = [...matchedPlayers];
+        matchedTopRange = matchedPlayers.map((player, pIdx) => {
+          return {
+            scoreValue: pIdx + 1,
+            scoreIndex: pIdx,
+            scoreOwner: undefined,
+          };
+        });
+      }
+
+      //비교심사 선정 인원있는 경우 비교심사대상 인원을 제외한 인원을 normal로 배정
+      //normalRange도 같이 배정
+      if (filterNormalPlayers?.length > 0) {
+        const matchedPlayers = filterNormalPlayers.map((player, pIdx) => {
+          const newPlayers = { ...player, playerScore: 0 };
+
+          return newPlayers;
+        });
+        matchedNormalPlayers = [...matchedPlayers];
+        matchedNormalRange = matchedPlayers.map((player, pIdx) => {
+          return {
+            scoreValue: matchedPlayers.length + pIdx + 1,
+            scoreIndex: matchedPlayers.length + pIdx,
+            scoreOwner: undefined,
+          };
+        });
+      }
+
+      //top, normal이 모두 없는 경우는 비교심시가 아니거나 아직 명단 확정이 안되었다고 가정
+      //top은 빈배열로 정의하고 normal에 체급에 해당하는 선수 모두 배정
+      if (filterTopPlayers.length === 0 && filterNormalPlayers.length === 0) {
+        matchedTopPlayers = [];
+        matchedTopRange = [];
+        matchedNormalPlayers = [...matchedOriginalPlayers];
+
+        matchedNormalRange = matchedOriginalPlayers.map((player, pIdx) => {
+          return {
+            scoreValue: pIdx + 1,
+            scoreIndex: pIdx,
+            scoreOwner: undefined,
+          };
+        });
+      }
+
+      return {
+        contestId,
+        stageId,
+        stageNumber,
+        categoryId,
+        categoryTitle,
+        gradeId,
+        gradeTitle,
+        originalPlayers: matchedOriginalPlayers,
+        originalRange: matchedOriginalRange,
+        judgeUid,
+        judgeName,
+        matchedTopPlayers,
+        matchedTopRange,
+        matchedNormalPlayers,
+        matchedNormalRange,
+        isHead,
+        seatIndex,
+      };
+    });
+
+    return scoreCardInfo;
+  };
+
   // 심사표 전송을 하기전에 이중 등록을 방지하기 위해 gradeId,judgeUid값을 받아서
   // 문서id를 수집한후에 map으로 돌리면서 삭제해줌
   const deletePreScoreCard = async (collectionName, gradeId, judgeUid) => {
@@ -329,10 +337,6 @@ const AutoScoreTable = () => {
           `currentStage/${contestId}/judges/${seatIndex - 1}`,
           currentJudge
         )
-        .then(
-          () =>
-            actionType === "success" && navigate("/lobby", { replace: true })
-        )
         .then(() => {
           setMsgOpen(false);
         });
@@ -343,7 +347,6 @@ const AutoScoreTable = () => {
   const handleSaveScoreCard = async (propData) => {
     let scoreCardsArray = [];
 
-    console.log(propData);
     if (propData?.length <= 0) {
       return;
     }
@@ -354,7 +357,7 @@ const AutoScoreTable = () => {
     await Promise.all(
       propData.map(async (data) => {
         await deletePreScoreCard(
-          contestInfo.collectionName,
+          location.state.collectionName,
           data.gradeId,
           data.judgeUid
         );
@@ -367,10 +370,10 @@ const AutoScoreTable = () => {
           judgeUid,
           judgeName,
           seatIndex,
-          originalPlayers,
+          matchedPlayers,
         } = data;
 
-        originalPlayers.forEach((original) => {
+        matchedPlayers.forEach((match) => {
           const {
             playerNumber,
             playerUid,
@@ -378,8 +381,7 @@ const AutoScoreTable = () => {
             playerGym,
             playerScore,
             playerIndex,
-          } = original;
-          console.log(original);
+          } = match;
 
           const newInfo = {
             docuId: generateUUID(),
@@ -427,7 +429,7 @@ const AutoScoreTable = () => {
       validate: "wait",
       validateMsg: "",
     });
-    handleValidateScore(contestInfo.collectionName, scoreCardsArray);
+    handleValidateScore(location.state.collectionName, scoreCardsArray);
   };
 
   const handleValidateScore = async (collectionName, prevState) => {
@@ -517,12 +519,13 @@ const AutoScoreTable = () => {
         )
         .then(() =>
           navigate("/comparevote", {
-            replace: true,
             state: {
-              currentStageInfo,
-              currentJudgeInfo,
-              contestInfo,
-              compareInfo: { ...compareData },
+              stageInfo: location.state.stageInfo,
+              contestId: location.state.contestId,
+              prevMatched: currentStageInfo[0].matchedPlayers,
+              fullMatched: currentStageInfo[0].originalPlayers,
+              voteInfo: compareData,
+              seatIndex,
             },
           })
         );
@@ -531,43 +534,57 @@ const AutoScoreTable = () => {
     }
   };
 
+  const fetchPool = async (playersFinalId, gradeListId) => {
+    if (playersFinalId === undefined) {
+      return;
+    }
+    try {
+      await fetchPlayersFinal
+        .getDocument(playersFinalId)
+        .then((data) =>
+          setPlayersFinalArray(() => [
+            ...data.players.filter((f) => f.playerNoShow === false),
+          ])
+        );
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   useEffect(() => {
-    if (currentStageInfo && compareData?.scoreMode !== "compare") {
-      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
-        return (
-          stage.originalRange &&
-          stage.originalRange.some((range) => range.scoreOwner === undefined)
-        );
-      });
+    const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
+      return (
+        stage.matchedRange &&
+        stage.matchedRange.some((range) => range.scoreOwner === undefined)
+      );
+    });
 
-      setValidateScoreCard(hasUndefinedScoreOwner);
-    }
-
-    if (currentStageInfo && compareData?.scoreMode === "compare") {
-      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
-        return (
-          stage.matchedTopRange &&
-          stage.matchedTopRange.some((range) => range.scoreOwner === undefined)
-        );
-      });
-
-      setValidateScoreCard(hasUndefinedScoreOwner);
-    }
+    setValidateScoreCard(hasUndefinedScoreOwner);
   }, [currentStageInfo]);
+
+  useEffect(() => {
+    if (!currentContest?.contests) {
+      return;
+    } else {
+      fetchPool(
+        currentContest.contests.contestPlayersFinalId,
+        currentContest.contests.contestGradesListId
+      );
+    }
+  }, [currentContest?.contests]);
 
   useEffect(() => {
     if (!location.state) {
       return;
     }
-    setContestInfo(() => ({ ...location.state.contestInfo }));
-    setCurrentJudgeInfo(() => ({ ...location.state.currentJudgeInfo }));
-    setCurrentStageInfo(location.state.currentStageInfo);
-    setIsLoading(false);
+
+    setJudgeInfo(location.state.judgeInfo);
   }, [location, validateScoreCard]);
 
   useEffect(() => {
     //console.log(compareData);
     if (compareData?.players?.length > 0) {
+      setIsHolding(true);
       setTopPlayersArray(() => [...compareData.players]);
     }
   }, [compareData?.status]);
@@ -594,10 +611,6 @@ const AutoScoreTable = () => {
     return () => {};
   }, [getDocument]);
 
-  useEffect(() => {
-    console.log(location);
-  }, [location]);
-
   return (
     <>
       {isLoading && (
@@ -614,15 +627,15 @@ const AutoScoreTable = () => {
                 message={message}
                 onCancel={() =>
                   hadleAddedUpdateState(
-                    contestInfo.id,
-                    currentJudgeInfo.seatIndex,
+                    location.state.contestId,
+                    currentStageInfo[0].seatIndex,
                     "fail"
                   )
                 }
                 onConfirm={() =>
                   hadleAddedUpdateState(
-                    contestInfo.id,
-                    currentJudgeInfo.seatIndex,
+                    location.state.contestId,
+                    currentStageInfo[0].seatIndex,
                     "success"
                   )
                 }
@@ -633,7 +646,7 @@ const AutoScoreTable = () => {
               >
                 <CompareSetting
                   stageInfo={location.state.stageInfo}
-                  contestId={contestInfo.id}
+                  contestId={location.state.contestId}
                   prevMatched={currentStageInfo[0]?.matchedPlayers}
                   fullMatched={currentStageInfo[0]?.originalPlayers}
                   setClose={setCompareSettingOpen}
@@ -641,6 +654,16 @@ const AutoScoreTable = () => {
                 />
               </Modal>
 
+              {/* <Modal open={compareOpen} onClose={() => setCompareOpen(false)}>
+                <CompareSelection
+                  stageInfo={location.state.stageInfo}
+                  contestId={location.state.contestId}
+                  prevMatched={currentStageInfo[0]?.matchedPlayers}
+                  fullMatched={currentStageInfo[0]?.originalPlayers}
+                  setClose={setCompareOpen}
+                  gradeListId={currentContest.contests.contestGradesListId}
+                />
+              </Modal> */}
               <ConfirmationModal
                 isOpen={compareMsgOpen}
                 message={message}
@@ -648,7 +671,7 @@ const AutoScoreTable = () => {
                 onConfirm={() =>
                   handleUpdateJudgeMessage(
                     currentContest.contests.id,
-                    currentJudgeInfo.seatIndex
+                    judgeInfo.seatIndex
                   )
                 }
               />
@@ -686,13 +709,11 @@ const AutoScoreTable = () => {
             <div className="flex justify-start flex-col w-full">
               {currentStageInfo?.length >= 1 &&
                 currentStageInfo.map((stage, sIdx) => (
-                  <div
-                    className={`flex justify-start flex-col w-full border-2 rounded-lg p-2 mb-3 border-blue-200`}
-                  >
+                  <>
                     <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
                       {stage.categoryTitle} / {stage.gradeTitle}
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 mb-5">
                       <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
                         <div className="flex w-32 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
                           <span className="text-sm">선수번호</span>
@@ -705,7 +726,7 @@ const AutoScoreTable = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2 ">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2">
                       <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
                         {stage.matchedTopPlayers?.length > 0 &&
                           stage.matchedTopPlayers.map((matched, mIdx) => {
@@ -796,7 +817,6 @@ const AutoScoreTable = () => {
                       </div>
                       <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
                         {stage.matchedNormalPlayers?.length > 0 &&
-                          compareData?.scoreMode !== "compare" &&
                           stage.matchedNormalPlayers.map((matched, mIdx) => {
                             const { playerNumber, playerScore, playerUid } =
                               matched;
@@ -884,7 +904,7 @@ const AutoScoreTable = () => {
                           })}
                       </div>
                     </div>
-                  </div>
+                  </>
                 ))}
 
               <div className="flex w-full justify-start items-center flex-col gap-y-2">
@@ -896,9 +916,9 @@ const AutoScoreTable = () => {
                         서명
                       </div>
                       <div className="flex w-5/6 justify-center items-center h-20 ">
-                        {currentJudgeInfo && (
+                        {judgeInfo && (
                           <CanvasWithImageData
-                            imageData={currentJudgeInfo.judgeSignature}
+                            imageData={judgeInfo.judgeSignature}
                           />
                         )}
                       </div>

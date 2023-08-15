@@ -12,6 +12,7 @@ import AutoScoreTable from "./pages/AutoScoreTable";
 import ScoreLoginAuto from "./pages/ScoreLoginAuto";
 import CompareVote from "./pages/CompareVote";
 import CompareLobby from "./pages/CompareLobby";
+import JudgeLobby from "./pages/JudgeLobby";
 
 function App() {
   return (
@@ -19,14 +20,14 @@ function App() {
       <CurrentContestProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Login />} />
+            <Route path="/" element={<JudgeLobby />} />
             <Route path="/adminlogin" element={<Login />} />
             <Route path="/setting" element={<Setting />} />
             <Route path="/scorelogin" element={<ScoreLogin />} />
             <Route path="/scoreloginauto" element={<ScoreLoginAuto />} />
             <Route path="/autoscoretable" element={<AutoScoreTable />} />
             <Route path="/comparevote" element={<CompareVote />} />
-            <Route path="/comparelobby" element={<CompareLobby />} />
+            <Route path="/lobby" element={<JudgeLobby />} />
           </Routes>
         </BrowserRouter>
       </CurrentContestProvider>

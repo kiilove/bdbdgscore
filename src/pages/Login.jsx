@@ -46,6 +46,7 @@ const Login = () => {
                       type="password"
                       className=" bg-transparent  outline-none w-2/3"
                       onChange={(e) => setInputPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
                     />
                   </div>
                   <div className="flex w-full h-14 justify-center items-center">
