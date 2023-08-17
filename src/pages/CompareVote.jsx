@@ -55,6 +55,13 @@ const CompareVote = () => {
               "투표완료"
             )
         )
+        .then(
+          async () =>
+            await updateRealtime.updateData(
+              `currentStage/${contestId}/judges/${seatIndex - 1}`,
+              { errors: "", isEnd: false, isLogined: true, seatIndex }
+            )
+        )
         .then(() => {
           setMessage({
             body: "투표가 완료되었습니다.",
@@ -86,7 +93,7 @@ const CompareVote = () => {
 
   const handleNavigateLobby = () => {
     setLobbyMsgOpen(false);
-    //navigate("/comparelobby", { replace: true });
+    navigate("/lobby", { replace: true });
   };
 
   const handleVotedPlayers = (playerUid, playerNumber) => {
@@ -258,9 +265,6 @@ const CompareVote = () => {
                               );
                             })}
                         </div>{" "}
-                        {compareInfo.playerLength - judgeVoted.length === 0 && (
-                          <div className="flex 1/6">제출</div>
-                        )}
                       </>
                     ) : (
                       <div className="flex w-full h-auto flex-wrap box-border">
@@ -311,9 +315,9 @@ const CompareVote = () => {
               </div>
             </div>
             {compareInfo.playerLength === judgeVoted.length && (
-              <div className="flex w-full h-auto p-2 ">
+              <div className="flex w-full h-auto ">
                 <button
-                  className="w-full h-10 rounded-lg bg-blue-500 text-gray-100 flex justify-center items-center"
+                  className="w-full h-14 rounded-lg bg-blue-500 text-gray-100 flex justify-center items-center text-2xl"
                   onClick={() =>
                     handleUpdateVote(
                       contestInfo.id,

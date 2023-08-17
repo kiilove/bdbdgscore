@@ -687,12 +687,14 @@ const AutoScoreTable = () => {
               {currentStageInfo?.length >= 1 &&
                 currentStageInfo.map((stage, sIdx) => (
                   <div
-                    className={`flex justify-start flex-col w-full border-2 rounded-lg p-2 mb-3 border-blue-200`}
+                    className={`flex justify-start flex-col w-full border-2 rounded-lg py-2 mb-3 border-blue-200`}
                   >
-                    <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
-                      {stage.categoryTitle} / {stage.gradeTitle}
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 px-6">
+                      <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
+                        {stage.categoryTitle} / {stage.gradeTitle}
+                      </div>
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 px-6">
                       <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
                         <div className="flex w-32 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
                           <span className="text-sm">선수번호</span>
@@ -705,96 +707,105 @@ const AutoScoreTable = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2 ">
-                      <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 p-2">
+                      <div
+                        className={`${
+                          stage.matchedTopPlayers?.length > 0
+                            ? "flex h-full rounded-lg gap-y-2 flex-col w-full p-2 border-4 border-blue-600"
+                            : "hidden"
+                        }`}
+                      >
                         {stage.matchedTopPlayers?.length > 0 &&
                           stage.matchedTopPlayers.map((matched, mIdx) => {
                             const { playerNumber, playerScore, playerUid } =
                               matched;
 
                             return (
-                              <div className="flex w-full h-full rounded-md gap-x-2">
-                                <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
-                                  <span className="text-4xl font-semibold">
-                                    {playerNumber}
-                                  </span>
-                                </div>
-                                <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
-                                  {playerScore !== 0 && playerScore < 100 && (
-                                    <span className="text-4xl">
-                                      {playerScore}
+                              <div className="flex w-full h-auto ">
+                                <div className="flex w-full h-full rounded-md gap-x-2">
+                                  <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
+                                    <span className="text-4xl font-semibold">
+                                      {playerNumber}
                                     </span>
-                                  )}
-                                  {playerScore >= 100 && (
-                                    <span className="text-4xl">제외</span>
-                                  )}
-                                </div>
-                                <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
-                                  <div
-                                    className="flex w-full h-full flex-wrap gap-2"
-                                    style={{ minHeight: "80px" }}
-                                  >
-                                    {stage.matchedTopRange?.length > 0 &&
-                                      stage.matchedTopRange
-                                        .sort(
-                                          (a, b) => a.scoreIndex - b.scoreIndex
-                                        )
-                                        .map((range, rIdx) => {
-                                          const { scoreValue, scoreOwner } =
-                                            range;
-                                          return (
-                                            <>
-                                              {scoreOwner === undefined &&
-                                              matched.playerScore === 0 ? (
-                                                <button
-                                                  className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
-                                                  onClick={() =>
-                                                    handleScore(
-                                                      playerUid,
-                                                      scoreValue,
-                                                      sIdx,
-                                                      "score"
-                                                    )
-                                                  }
-                                                >
-                                                  {scoreValue}
-                                                </button>
-                                              ) : scoreOwner === playerUid &&
-                                                matched.playerScore ===
-                                                  scoreValue ? (
-                                                <button
-                                                  className="flex w-full h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-800 text-3xl text-gray-100"
-                                                  onClick={() =>
-                                                    handleScore(
-                                                      playerUid,
-                                                      scoreValue,
-                                                      sIdx,
-                                                      "unScore"
-                                                    )
-                                                  }
-                                                >
-                                                  <div className="flex w-18 h-18 rounded-full border border-gray-100 p-2">
-                                                    <AiFillLock />
+                                  </div>
+                                  <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                                    {playerScore !== 0 && playerScore < 100 && (
+                                      <span className="text-4xl">
+                                        {playerScore}
+                                      </span>
+                                    )}
+                                    {playerScore >= 100 && (
+                                      <span className="text-4xl">제외</span>
+                                    )}
+                                  </div>
+                                  <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
+                                    <div
+                                      className="flex w-full h-full flex-wrap gap-2"
+                                      style={{ minHeight: "80px" }}
+                                    >
+                                      {stage.matchedTopRange?.length > 0 &&
+                                        stage.matchedTopRange
+                                          .sort(
+                                            (a, b) =>
+                                              a.scoreIndex - b.scoreIndex
+                                          )
+                                          .map((range, rIdx) => {
+                                            const { scoreValue, scoreOwner } =
+                                              range;
+                                            return (
+                                              <>
+                                                {scoreOwner === undefined &&
+                                                matched.playerScore === 0 ? (
+                                                  <button
+                                                    className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
+                                                    onClick={() =>
+                                                      handleScore(
+                                                        playerUid,
+                                                        scoreValue,
+                                                        sIdx,
+                                                        "score"
+                                                      )
+                                                    }
+                                                  >
+                                                    {scoreValue}
+                                                  </button>
+                                                ) : scoreOwner === playerUid &&
+                                                  matched.playerScore ===
+                                                    scoreValue ? (
+                                                  <button
+                                                    className="flex w-full h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-800 text-3xl text-gray-100"
+                                                    onClick={() =>
+                                                      handleScore(
+                                                        playerUid,
+                                                        scoreValue,
+                                                        sIdx,
+                                                        "unScore"
+                                                      )
+                                                    }
+                                                  >
+                                                    <div className="flex w-18 h-18 rounded-full border border-gray-100 p-2">
+                                                      <AiFillLock />
+                                                    </div>
+                                                  </button>
+                                                ) : scoreOwner !== playerUid &&
+                                                  playerScore === 0 ? (
+                                                  <div className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600 cursor-not-allowed">
+                                                    <div className="flex w-18 h-18 rounded-full border-blue-400 p-2 text-blue-400">
+                                                      <AiFillMinusCircle />
+                                                    </div>
                                                   </div>
-                                                </button>
-                                              ) : scoreOwner !== playerUid &&
-                                                playerScore === 0 ? (
-                                                <div className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600 cursor-not-allowed">
-                                                  <div className="flex w-18 h-18 rounded-full border-blue-400 p-2 text-blue-400">
-                                                    <AiFillMinusCircle />
-                                                  </div>
-                                                </div>
-                                              ) : null}
-                                            </>
-                                          );
-                                        })}
+                                                ) : null}
+                                              </>
+                                            );
+                                          })}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             );
                           })}
                       </div>
-                      <div className="flex h-full rounded-md gap-y-2 flex-col w-full">
+                      <div className="flex h-full rounded-md gap-y-2 flex-col w-full px-4">
                         {stage.matchedNormalPlayers?.length > 0 &&
                           compareData?.scoreMode !== "compare" &&
                           stage.matchedNormalPlayers.map((matched, mIdx) => {
