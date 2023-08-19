@@ -9,6 +9,7 @@ import {
 
 import { AiFillLock, AiFillMinusCircle } from "react-icons/ai";
 import YbbfLogo from "../assets/img/ybbf_logo.png";
+import { FaCircleCheck } from "react-icons/fa6";
 import { where } from "firebase/firestore";
 import CanvasWithImageData from "../components/CanvasWithImageData";
 
@@ -24,7 +25,13 @@ import { Modal } from "@mui/material";
 import CompareSetting from "../modals/CompareSetting";
 import { debounce } from "lodash";
 import ConfirmationModal from "../messageBox/ConfirmationModal";
-import { PointArray } from "../components/PointCard";
+import {
+  MaxPoint,
+  MinPoint,
+  PointArray,
+  PointRange,
+} from "../components/PointCard";
+import { FaCheck } from "react-icons/fa";
 
 const AutoPointTable = () => {
   const location = useLocation();
@@ -34,6 +41,7 @@ const AutoPointTable = () => {
   const [contestInfo, setContestInfo] = useState({});
   const [currentJudgeInfo, setCurrentJudgeInfo] = useState({});
   const [topPlayersArray, setTopPlayersArray] = useState([]);
+  const [playersPointInfo, setPlayersPointInfo] = useState([]);
 
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareSettingOpen, setCompareSettingOpen] = useState(false);
@@ -68,212 +76,58 @@ const AutoPointTable = () => {
 
   const updateRealTimeJudgeMessage = useFirebaseRealtimeUpdateData();
 
-  //리팩토리 v2
-  const handleScore = (playerUid, scoreValue, stageInfoIndex, actionType) => {
-    const newScoreValue = actionType === "unScore" ? 0 : scoreValue;
-    const newPlayerUid = actionType === "unScore" ? undefined : playerUid;
-    const newCurrentStageInfo = [...currentStageInfo];
-    const stage = newCurrentStageInfo[stageInfoIndex];
+  const updatePlayerPoints = (player, playerPointArrayIndex, pointValue) => {
+    const updatedPlayerPointArray = player.playerPointArray.map((point, idx) =>
+      idx === playerPointArrayIndex ? { ...point, point: pointValue } : point
+    );
 
-    const updateArray = (arr, findKey, findValue, updatedValues) => {
-      const index = arr.findIndex((item) => item[findKey] === findValue);
-      if (index !== -1) {
-        arr[index] = { ...arr[index], ...updatedValues };
-      }
+    return {
+      ...player,
+      playerScore: handlePointSum(updatedPlayerPointArray),
+      playerPointArray: updatedPlayerPointArray,
     };
-
-    updateArray(stage.originalPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-    updateArray(stage.matchedTopRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.matchedNormalRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.originalRange, "scoreValue", scoreValue, {
-      scoreOwner: newPlayerUid,
-    });
-    updateArray(stage.matchedTopPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-    updateArray(stage.matchedNormalPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
-
-    setCurrentStageInfo(newCurrentStageInfo);
-    console.log(newCurrentStageInfo);
   };
 
-  //리팩토리 v1
-  const handleScoreReV1 = (
+  const handlePoint = (
     playerUid,
-    scoreValue,
+    gradeId,
     stageInfoIndex,
-    actionType
+    playerPointArrayIndex,
+    pointValue
   ) => {
     const newCurrentStageInfo = [...currentStageInfo];
-    const currentStage = newCurrentStageInfo[stageInfoIndex];
-    const {
-      originalPlayers,
-      matchedTopPlayers,
-      matchedNormalPlayers,
-      matchedTopRange,
-      matchedNormalRange,
-    } = currentStage;
+    const newStage = { ...newCurrentStageInfo[stageInfoIndex] };
 
-    let newScoreValue = actionType === "unScore" ? 0 : scoreValue;
-    let newPlayerUid = actionType === "unScore" ? undefined : playerUid;
-
-    const updatePlayerScore = (playersArray, index, value) => {
-      const newPlayer = { ...playersArray[index], playerScore: value };
-      playersArray.splice(index, 1, newPlayer);
-    };
-
-    const updateRangeScoreOwner = (rangeArray, index, uid) => {
-      const newValue = { ...rangeArray[index], scoreOwner: uid };
-      rangeArray.splice(index, 1, newValue);
-    };
-
-    const playerIndex = originalPlayers.findIndex(
-      (player) => player.playerUid === playerUid
-    );
-    updatePlayerScore(originalPlayers, playerIndex, newScoreValue);
-
-    const topRangeIndex = matchedTopRange.findIndex(
-      (range) => range.scoreValue === scoreValue
-    );
-    const normalRangeIndex = matchedNormalRange.findIndex(
-      (range) => range.scoreValue === scoreValue
-    );
-
-    if (topRangeIndex !== -1) {
-      updateRangeScoreOwner(matchedTopRange, topRangeIndex, newPlayerUid);
-      const topPlayerIndex = matchedTopPlayers.findIndex(
-        (player) => player.playerUid === playerUid
-      );
-      updatePlayerScore(matchedTopPlayers, topPlayerIndex, newScoreValue);
-    }
-
-    if (normalRangeIndex !== -1) {
-      updateRangeScoreOwner(matchedNormalRange, normalRangeIndex, newPlayerUid);
-      const normalPlayerIndex = matchedNormalPlayers.findIndex(
-        (player) => player.playerUid === playerUid
-      );
-      updatePlayerScore(matchedNormalPlayers, normalPlayerIndex, newScoreValue);
-    }
-
-    newCurrentStageInfo[stageInfoIndex] = {
-      ...currentStage,
-      originalPlayers,
-      matchedTopPlayers,
-      matchedNormalPlayers,
-      matchedTopRange,
-      matchedNormalRange,
-    };
-
-    setCurrentStageInfo(newCurrentStageInfo);
-  };
-
-  // 심사전인지 후인지 체크하여 state값 변경함
-  const handleScoreOld = (
-    playerUid,
-    scoreValue,
-    stageInfoIndex,
-    actionType
-  ) => {
-    let newScoreValue = scoreValue;
-    let newPlayerUid = playerUid;
-
-    if (actionType === "unScore") {
-      newScoreValue = 0;
-      newPlayerUid = undefined;
-    }
-    const newCurrentStageInfo = [...currentStageInfo];
-    const newOriginalPlayers = [
-      ...newCurrentStageInfo[stageInfoIndex].originalPlayers,
-    ];
-    const newMatchedTopPlayers = [
-      ...newCurrentStageInfo[stageInfoIndex].matchedTopPlayers,
-    ];
-
-    const newMatchedNormalPlayers = [
-      ...newCurrentStageInfo[stageInfoIndex].matchedNormalPlayers,
-    ];
-    const playerArrayIndex = newOriginalPlayers.findIndex(
-      (f) => f.playerUid === playerUid
-    );
-    const topPlayerArrayIndex = newMatchedTopPlayers.findIndex(
-      (f) => f.playerUid === playerUid
-    );
-    const normalPlayerArrayIndex = newMatchedNormalPlayers.findIndex(
-      (f) => f.playerUid === playerUid
-    );
-
-    const newOriginalPlayer = {
-      ...newOriginalPlayers[playerArrayIndex],
-      playerScore: newScoreValue,
-    };
-
-    newOriginalPlayers.splice(playerArrayIndex, 1, { ...newOriginalPlayer });
-
-    const newMatchedTopRange = [
-      ...newCurrentStageInfo[stageInfoIndex].matchedTopRange,
-    ];
-    const newMatchedNormalRange = [
-      ...newCurrentStageInfo[stageInfoIndex].matchedNormalRange,
-    ];
-
-    const topRangeArrayIndex = newMatchedTopRange.findIndex(
-      (f) => f.scoreValue === scoreValue
-    );
-
-    const normalRangeArrayIndex = newMatchedNormalRange.findIndex(
-      (f) => f.scoreValue === scoreValue
-    );
-    if (topRangeArrayIndex !== -1) {
-      const newValue = {
-        ...newMatchedTopRange[topRangeArrayIndex],
-        scoreOwner: newPlayerUid,
-      };
-      const newPlayer = {
-        ...newMatchedTopPlayers[topPlayerArrayIndex],
-        playerScore: newScoreValue,
-      };
-
-      newMatchedTopRange.splice(topRangeArrayIndex, 1, { ...newValue });
-      newMatchedTopPlayers.splice(topPlayerArrayIndex, 1, { ...newPlayer });
-    }
-
-    if (normalRangeArrayIndex !== -1) {
-      const newValue = {
-        ...newMatchedNormalRange[normalRangeArrayIndex],
-        scoreOwner: newPlayerUid,
-      };
-      const newPlayer = {
-        ...newMatchedNormalPlayers[normalPlayerArrayIndex],
-        playerScore: newScoreValue,
-      };
-      console.log(newPlayer);
-      newMatchedNormalRange.splice(normalRangeArrayIndex, 1, { ...newValue });
-      newMatchedNormalPlayers.splice(normalPlayerArrayIndex, 1, {
-        ...newPlayer,
+    const updatePlayerList = (players) =>
+      players.map((player) => {
+        if (
+          player.playerUid === playerUid &&
+          player.contestGradeId === gradeId &&
+          player.playerPointArray[playerPointArrayIndex]
+        ) {
+          return updatePlayerPoints(player, playerPointArrayIndex, pointValue);
+        }
+        return player;
       });
-    }
 
-    const newStageInfo = {
-      ...newCurrentStageInfo[stageInfoIndex],
-      originalPlayers: [...newOriginalPlayers],
-      matchedTopRange: [...newMatchedTopRange],
-      matchedNormalRange: [...newMatchedNormalRange],
-      matchedTopPlayers: [...newMatchedTopPlayers],
-      matchedNormalPlayers: [...newMatchedNormalPlayers],
-    };
+    newStage.originalPlayers = updatePlayerList(newStage.originalPlayers);
+    newStage.matchedNormalPlayers = updatePlayerList(
+      newStage.matchedNormalPlayers
+    );
 
-    newCurrentStageInfo.splice(stageInfoIndex, 1, { ...newStageInfo });
-    console.log(newCurrentStageInfo);
-    setCurrentStageInfo([...newCurrentStageInfo]);
+    newCurrentStageInfo[stageInfoIndex] = newStage;
+
+    setCurrentStageInfo(newCurrentStageInfo);
   };
+
+  const handlePointSum = (arr) => {
+    return arr.reduce((acc, playerPoint) => {
+      if (typeof playerPoint.point === "undefined") return acc;
+      return acc + playerPoint.point;
+    }, 0);
+  };
+
+  //리팩토리 v2
 
   // 심사표 전송을 하기전에 이중 등록을 방지하기 위해 gradeId,judgeUid값을 받아서
   // 문서id를 수집한후에 map으로 돌리면서 삭제해줌
@@ -363,6 +217,7 @@ const AutoPointTable = () => {
         const {
           categoryId,
           categoryTitle,
+          categoryJudgeType,
           gradeId,
           gradeTitle,
           judgeUid,
@@ -380,17 +235,18 @@ const AutoPointTable = () => {
             playerScore,
             playerIndex,
           } = original;
-          console.log(original);
 
           const newInfo = {
             docuId: generateUUID(),
             categoryId,
             categoryTitle,
+            categoryJudgeType,
             gradeId,
             gradeTitle,
             judgeUid,
             judgeName,
             seatIndex,
+            scoreType: "point",
             playerNumber,
             playerUid,
             playerName,
@@ -533,25 +389,20 @@ const AutoPointTable = () => {
   };
 
   useEffect(() => {
-    if (currentStageInfo && compareData?.scoreMode !== "compare") {
-      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
+    console.log(currentStageInfo);
+    const newCurrentStageInfo = [...currentStageInfo];
+    if (newCurrentStageInfo && compareData?.scoreMode !== "compare") {
+      const hasUndefinedScoreOwner = newCurrentStageInfo.some((stage) => {
         return (
-          stage.originalRange &&
-          stage.originalRange.some((range) => range.scoreOwner === undefined)
+          stage.originalPlayers &&
+          stage.originalPlayers.some((player) =>
+            player.playerPointArray.some(
+              (pointObj) => typeof pointObj.point === "undefined"
+            )
+          )
         );
       });
-
-      setValidateScoreCard(hasUndefinedScoreOwner);
-    }
-
-    if (currentStageInfo && compareData?.scoreMode === "compare") {
-      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
-        return (
-          stage.matchedTopRange &&
-          stage.matchedTopRange.some((range) => range.scoreOwner === undefined)
-        );
-      });
-
+      console.log(hasUndefinedScoreOwner);
       setValidateScoreCard(hasUndefinedScoreOwner);
     }
   }, [currentStageInfo]);
@@ -564,7 +415,7 @@ const AutoPointTable = () => {
     setCurrentJudgeInfo(() => ({ ...location.state.currentJudgeInfo }));
     setCurrentStageInfo(location.state.currentStageInfo);
     setIsLoading(false);
-  }, [location, validateScoreCard]);
+  }, [location]);
 
   useEffect(() => {
     //console.log(compareData);
@@ -690,32 +541,35 @@ const AutoPointTable = () => {
                   <div
                     className={`flex justify-start flex-col w-full border-2 rounded-lg py-2 mb-3 border-blue-200`}
                   >
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2 px-6">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 px-1">
                       <div className="flex w-full h-12 rounded-md gap-x-2 justify-center items-center bg-blue-300 mb-2 font-semibold text-lg">
                         {stage.categoryTitle} / {stage.gradeTitle}
                       </div>
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2 px-6">
-                      <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
-                        <div className="flex w-1/6 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2">
+                      <div className="flex w-full rounded-md gap-x-2 justify-center items-center p-1">
+                        <div
+                          className="flex h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200"
+                          style={{ width: "140px" }}
+                        >
                           <span className="text-sm">선수번호</span>
                         </div>
-                        <div className="flex w-4/6  justify-center items-start  px-6 gap-2">
-                          {PointArray.map((point, pIdx) => {
-                            const { title } = point;
-                            return (
-                              <div className="flex w-1/4 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                                <span className="text-sm">{title}</span>
-                              </div>
-                            );
-                          })}
+                        <div className="flex w-full justify-center items-start gap-2 flex-wrap">
+                          <div className="flex w-full h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
+                            <span className="text-sm">
+                              심사항목(최소:{MinPoint}/최대:{MaxPoint})
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex h-10 w-1/6 justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                        <div
+                          className="flex h-10 justify-center items-center bg-blue-300 rounded-lg border border-gray-200"
+                          style={{ width: "140px" }}
+                        >
                           <span className="text-sm">합계</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex w-full justify-start items-center flex-col gap-y-2 p-2">
+                    <div className="flex w-full justify-start items-center flex-col gap-y-2 p-1">
                       {/* <div
                         className={`${
                           stage.matchedTopPlayers?.length > 0
@@ -816,108 +670,92 @@ const AutoPointTable = () => {
                             );
                           })}
                       </div> */}
-                      <div className="flex w-full justify-start items-center flex-col gap-y-2 px-4">
+                      <div className="flex w-full justify-start items-center flex-col gap-y-2">
                         {stage.matchedNormalPlayers?.length > 0 &&
                           compareData?.scoreMode !== "compare" &&
                           stage.matchedNormalPlayers.map((matched, mIdx) => {
-                            const { playerNumber, playerScore, playerUid } =
-                              matched;
+                            const {
+                              playerNumber,
+                              playerPointArray,
+                              playerUid,
+                              playerScore,
+                            } = matched;
 
                             return (
-                              <div className="flex w-full h-full rounded-md gap-x-2 justify-center items-center">
+                              <div className="flex w-full h-auto p-1 border-2 border-blue-300 rounded-lg">
                                 <div
-                                  className="flex w-1/6 h-full justify-center items-center bg-blue-100 rounded-lg border border-gray-200"
-                                  style={{ minHeight: "330px" }}
+                                  className="flex h-auto justify-center items-center bg-blue-200 rounded-lg border border-gray-200"
+                                  style={{ width: "128px" }}
                                 >
                                   <span className="text-4xl font-semibold">
                                     {playerNumber}
                                   </span>
                                 </div>
-                                <div className="flex w-4/6 h-full justify-center items-start px-6 gap-2">
+                                <div className="flex w-full h-full justify-between items-start flex-wrap px-2 gap-2">
                                   {PointArray.map((point, pIdx) => {
-                                    const { title } = point;
+                                    const {
+                                      title,
+                                      startPoint,
+                                      endPoint,
+                                      rangeLength,
+                                    } = point;
                                     return (
-                                      <div className="flex w-1/4 h-full justify-center items-center bg-blue-100 rounded-lg border border-gray-200 flex-wrap box-border gap-2 p-2">
-                                        {Array.from({ length: 10 }).map(
-                                          (_, idx) => (
-                                            <div className="flex w-14 h-14 p-2 rounded-lg bg-blue-200 justify-center items-center">
-                                              {idx + 1}
-                                            </div>
-                                          )
-                                        )}
+                                      <div
+                                        className="flex justify-between items-center bg-blue-100 rounded-lg border border-gray-200 gap-2 p-2 flex-col w-56 lg:w-auto"
+                                        style={{
+                                          minWidth: "230px",
+                                          maxWidth: "430px",
+                                        }}
+                                      >
+                                        <div className="flex text-sm justify-center items-center w-full bg-blue-300 h-10 rounded-lg px-2">
+                                          <span className="flex justify-start w-1/2 font-semibold">
+                                            {title}
+                                          </span>
+                                          <div className="flex justify-end w-1/2 items-center">
+                                            {playerPointArray[pIdx].point !==
+                                              undefined && (
+                                              <span className="flex justify-center items-center w-8 h-8 bg-green-600 rounded-lg text-gray-100">
+                                                <FaCheck className="text-2xl" />
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="flex w-full gap-2 h-auto flex-wrap items-center">
+                                          {Array.from({
+                                            length: endPoint,
+                                          }).map((_, idx) => (
+                                            <button
+                                              className={
+                                                playerPointArray[pIdx].point ===
+                                                startPoint + idx
+                                                  ? "flex w-9 h-9 p-2 rounded-lg bg-blue-800 justify-center items-center text-gray-100"
+                                                  : "flex w-9 h-9 p-2 rounded-lg bg-blue-200 justify-center items-center"
+                                              }
+                                              onClick={() =>
+                                                handlePoint(
+                                                  playerUid,
+                                                  stage.gradeId,
+                                                  sIdx,
+                                                  pIdx,
+                                                  startPoint + idx
+                                                )
+                                              }
+                                            >
+                                              {startPoint + idx}
+                                            </button>
+                                          ))}
+                                        </div>
                                       </div>
                                     );
                                   })}
                                 </div>
                                 <div
-                                  className="flex w-1/6 h-full justify-center items-center bg-blue-200 rounded-lg border border-gray-200"
-                                  style={{ minHeight: "330px" }}
+                                  className="flex h-auto justify-center items-center bg-blue-200 rounded-lg border border-gray-200"
+                                  style={{ width: "128px" }}
                                 >
-                                  <span className="text-sm">합계</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        <div className="flex w-full rounded-md gap-x-2 justify-center items-center">
-                          <div className="flex w-1/6 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                            <span className="text-sm">선수번호</span>
-                          </div>
-                          <div className="flex w-4/6  justify-center items-start  px-6 gap-2">
-                            {PointArray.map((point, pIdx) => {
-                              const { title } = point;
-                              return (
-                                <div className="flex w-1/4 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                                  <span className="text-sm">{title}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div className="flex h-10 w-1/6 justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
-                            <span className="text-sm">합계</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex w-full justify-start items-center flex-col gap-y-2 px-4">
-                        {stage.matchedNormalPlayers?.length > 0 &&
-                          compareData?.scoreMode !== "compare" &&
-                          stage.matchedNormalPlayers.map((matched, mIdx) => {
-                            const { playerNumber, playerScore, playerUid } =
-                              matched;
-
-                            return (
-                              <div className="flex w-full h-full rounded-md">
-                                <div className="flex  w-1/6 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
                                   <span className="text-4xl font-semibold">
-                                    {playerNumber}
+                                    {playerScore}
                                   </span>
-                                </div>
-
-                                <div className="flex w-full h-full justify-center items-center bg-white rounded-lg flex-wrap p-1 gap-1">
-                                  <div className="flex w-full h-full flex-wrap gap-2">
-                                    {PointArray.map((point, pIdx) => {
-                                      const { title } = point;
-                                      return (
-                                        <div className="flex w-52 h-10 justify-center items-center bg-blue-200 rounded-lg border border-gray-200">
-                                          <span className="text-sm">
-                                            {title}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                <div
-                                  className="flex font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200"
-                                  style={{ width: "118px" }}
-                                >
-                                  {playerScore !== 0 && playerScore < 100 && (
-                                    <span className="text-4xl">
-                                      {playerScore}
-                                    </span>
-                                  )}
-                                  {playerScore >= 100 && (
-                                    <span className="text-4xl">제외</span>
-                                  )}
                                 </div>
                               </div>
                             );
@@ -938,7 +776,7 @@ const AutoPointTable = () => {
                       <div className="flex w-5/6 justify-center items-center h-20 ">
                         {currentJudgeInfo && (
                           <CanvasWithImageData
-                            imageData={currentJudgeInfo.judgeSignature}
+                            imageData={currentStageInfo[0].judgeSignature}
                           />
                         )}
                       </div>

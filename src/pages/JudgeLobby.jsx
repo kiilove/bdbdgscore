@@ -13,9 +13,14 @@ import LoadingPage from "./LoadingPage";
 import ConfirmationModal from "../messageBox/ConfirmationModal";
 import { FaSpinner } from "react-icons/fa";
 import { CgSpinner } from "react-icons/cg";
-import { useFirestoreGetDocument } from "../hooks/useFirestores";
+import {
+  useFirestoreGetDocument,
+  useFirestoreQuery,
+} from "../hooks/useFirestores";
 import { Modal } from "@mui/material";
 import CompareVote from "./CompareVote";
+import { PointArray } from "../components/PointCard";
+import { where } from "firebase/firestore";
 
 const JudgeLobby = () => {
   const navigate = useNavigate();
@@ -32,6 +37,7 @@ const JudgeLobby = () => {
     loadingIcon: false,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefresh, setIsRefresh] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
   const [message, setMessage] = useState({});
   const [compareVoteOpen, setCompareVoteOpen] = useState(false);
@@ -39,6 +45,7 @@ const JudgeLobby = () => {
   const [contestInfo, setContestInfo] = useState({});
   const [judgeLogined, setJudgeLogined] = useState(false);
   const [judgeScoreEnd, setJudgeScoreEnd] = useState(false);
+  const [judgeSign, setJudgeSign] = useState("");
   const [compareStatus, setCompareStatus] = useState({});
   const [judgeCompareVoted, setJudgeCompareVoted] = useState();
   const [navigateType, setNavigateType] = useState("");
@@ -49,6 +56,7 @@ const JudgeLobby = () => {
   const [currentStagesAssign, setCurrentStagesAssign] = useState({});
   const [currentJudgeAssign, setCurrentJudgeAssign] = useState({});
   const [currentJudgeInfo, setCurrentJudgeInfo] = useState({});
+  const [judgePoolsArray, setJudgePoolsArray] = useState([]);
   const [currentStageInfo, setCurrentStageInfo] = useState([]);
 
   const { data: realtimeData, getDocument } = useFirebaseRealtimeGetDocument();
@@ -57,8 +65,16 @@ const JudgeLobby = () => {
   const fetchPlayersFinal = useFirestoreGetDocument("contest_players_final");
   const fetchStagesAssign = useFirestoreGetDocument("contest_stages_assign");
   const fetchJudgeAssign = useFirestoreGetDocument("contest_judges_assign");
+  const fetchJudgePool = useFirestoreQuery();
 
-  const fetchPool = async (stageId, judgeAssignId, playersFinalId) => {
+  const fetchPool = async (
+    stageId,
+    judgeAssignId,
+    playersFinalId,
+    contestId
+  ) => {
+    console.log(contestId);
+    const condition = [where("contestId", "==", contestId)];
     try {
       await fetchStagesAssign
         .getDocument(stageId)
@@ -75,8 +91,17 @@ const JudgeLobby = () => {
             ...data.players.filter((f) => f.playerNoShow === false),
           ])
         );
+
+      await fetchJudgePool
+        .getDocuments("contest_judges_pool", condition)
+        .then((data) => {
+          console.log(data);
+          setJudgePoolsArray([...data]);
+        });
     } catch (error) {
       console.log(error);
+    } finally {
+      setIsRefresh(false);
     }
   };
 
@@ -103,13 +128,13 @@ const JudgeLobby = () => {
     if (stageId && stagesAssign?.length > 0) {
       findCurrentStage = stagesAssign.find((f) => f.stageId === stageId);
       //console.log(findCurrentStage);
-      if (findCurrentStage.categoryJudgeType === "랭킹형(짜찝표)") {
+      if (findCurrentStage?.categoryJudgeType === "ranking") {
         setCardType("score");
       }
-      if (findCurrentStage.categoryJudgeType === "점수형") {
+      if (findCurrentStage?.categoryJudgeType === "point") {
         setCardType("point");
       }
-      grades = [...findCurrentStage.grades];
+      grades = [...findCurrentStage?.grades];
 
       if (machineId && grades[0].gradeId) {
         findCurrentJudge = judgesAssign.find(
@@ -153,6 +178,7 @@ const JudgeLobby = () => {
     players,
     topPlayers = []
   ) => {
+    console.log(stageInfo);
     const { stageId, stageNumber, categoryJudgeType } = stageInfo;
     const {
       judgeUid,
@@ -161,8 +187,19 @@ const JudgeLobby = () => {
       seatIndex,
       contestId,
       onedayPassword,
-      judgeSignature,
     } = judgeInfo;
+
+    console.log(judgePoolsArray);
+    const judgeSignature = judgePoolsArray.find(
+      (f) => f.judgeUid === judgeUid
+    ).judgeSignature;
+
+    //점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
+    //playerspointIfno랑 변수명을 다르게 하기 위해 players를 빼고 변수명 정의
+    const playerPointArray = PointArray.map((point, pIdx) => {
+      const { title } = point;
+      return { title, point: undefined };
+    });
 
     const scoreCardInfo = grades.map((grade, gIdx) => {
       let comparePlayers = [];
@@ -180,7 +217,7 @@ const JudgeLobby = () => {
         .sort((a, b) => a.playerIndex - b.playerIndex);
 
       let matchedOriginalPlayers = filterPlayers.map((player, pIdx) => {
-        const newPlayers = { ...player, playerScore: 0 };
+        const newPlayers = { ...player, playerScore: 0, playerPointArray };
 
         return newPlayers;
       });
@@ -203,7 +240,7 @@ const JudgeLobby = () => {
       //topRange도 같이 배정
       if (filterTopPlayers?.length > 0) {
         const matchedPlayers = filterTopPlayers.map((player, pIdx) => {
-          const newPlayers = { ...player, playerScore: 0 };
+          const newPlayers = { ...player, playerScore: 0, playerPointArray };
 
           return newPlayers;
         });
@@ -225,7 +262,7 @@ const JudgeLobby = () => {
         realtimeData?.compares?.scoreMode !== "compare"
       ) {
         const matchedPlayers = filterNormalPlayers.map((player, pIdx) => {
-          const newPlayers = { ...player, playerScore: 0 };
+          const newPlayers = { ...player, playerScore: 0, playerPointArray };
 
           return newPlayers;
         });
@@ -245,7 +282,7 @@ const JudgeLobby = () => {
         realtimeData?.compares?.scoreMode === "compare"
       ) {
         const matchedPlayers = filterNormalPlayers.map((player, pIdx) => {
-          const newPlayers = { ...player, playerScore: 1000 };
+          const newPlayers = { ...player, playerScore: 1000, playerPointArray };
 
           return newPlayers;
         });
@@ -317,33 +354,6 @@ const JudgeLobby = () => {
     });
 
     return scoreCardInfo;
-  };
-
-  const handleCurrentStageInfoOld = () => {
-    let topPlayers = [];
-    if (
-      realtimeData?.compares?.players?.length > 0 &&
-      (realtimeData.compares.status.compareStart ||
-        realtimeData.compares.status.compareIng)
-    ) {
-      topPlayers = [...realtimeData.compares.players];
-    }
-
-    if (
-      currentStagesAssign &&
-      currentJudgeAssign &&
-      currentStagesAssign?.grades?.length > 0
-    ) {
-      const scores = makeScoreCard(
-        currentStagesAssign,
-        currentJudgeAssign,
-        currentStagesAssign.grades,
-        currentplayersFinalArray,
-        topPlayers
-      );
-
-      setCurrentStageInfo([...scores]);
-    }
   };
 
   const handleMachineCheck = () => {
@@ -528,14 +538,15 @@ const JudgeLobby = () => {
   }, [getDocument, contestInfo]);
 
   useEffect(() => {
-    if (contestInfo.id) {
+    if (contestInfo.id && isRefresh) {
       fetchPool(
         contestInfo.contestStagesAssignId,
         contestInfo.contestJudgesAssignId,
-        contestInfo.contestPlayersFinalId
+        contestInfo.contestPlayersFinalId,
+        contestInfo.id
       );
     }
-  }, [contestInfo]);
+  }, [contestInfo, isRefresh]);
 
   useEffect(() => {
     if (realtimeData?.stageId) {
@@ -594,6 +605,7 @@ const JudgeLobby = () => {
 
   useEffect(() => {
     handleMachineCheck();
+    setIsRefresh(true);
   }, []);
 
   useEffect(() => {

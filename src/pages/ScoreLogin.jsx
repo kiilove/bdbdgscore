@@ -150,12 +150,22 @@ const ScoreLogin = () => {
 
   useEffect(() => {
     console.log(location);
-    
   }, [location]);
 
   useEffect(() => {
     realtimeData?.categoryTitle && setIsLoading(false);
   }, [realtimeData]);
+
+  useEffect(() => {
+    if (
+      realtimeData &&
+      realtimeData?.stageId !== location?.state?.currentStageInfo[0].stageId
+    ) {
+      console.log("real", realtimeData?.stageId);
+      console.log("location", location?.state?.currentStageInfo[0].stageId);
+      navigate("/lobby", { replace: true });
+    }
+  }, [realtimeData?.stageId]);
 
   return (
     <>
@@ -180,7 +190,7 @@ const ScoreLogin = () => {
               {machineId}
             </span>
           </div>
-          <div className="flex text-5xl font-bold text-blue-900 h-auto w-full justify-center items-center p-5">
+          <div className="flex text-2xl font-bold text-blue-900 h-auto w-full justify-center items-center p-5">
             {realtimeData?.categoryTitle} ({realtimeData?.gradeTitle})
             {location?.state?.currentStageInfo[0].onedayPassword}
           </div>

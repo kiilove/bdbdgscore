@@ -362,6 +362,7 @@ const AutoScoreTable = () => {
         const {
           categoryId,
           categoryTitle,
+          categoryJudgeType,
           gradeId,
           gradeTitle,
           judgeUid,
@@ -385,11 +386,13 @@ const AutoScoreTable = () => {
             docuId: generateUUID(),
             categoryId,
             categoryTitle,
+            categoryJudgeType,
             gradeId,
             gradeTitle,
             judgeUid,
             judgeName,
             seatIndex,
+            scoreType: "ranking",
             playerNumber,
             playerUid,
             playerName,
@@ -909,7 +912,7 @@ const AutoScoreTable = () => {
                       <div className="flex w-5/6 justify-center items-center h-20 ">
                         {currentJudgeInfo && (
                           <CanvasWithImageData
-                            imageData={currentJudgeInfo.judgeSignature}
+                            imageData={currentStageInfo[0].judgeSignature}
                           />
                         )}
                       </div>
