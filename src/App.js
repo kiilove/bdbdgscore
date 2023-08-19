@@ -13,6 +13,7 @@ import ScoreLoginAuto from "./pages/ScoreLoginAuto";
 import CompareVote from "./pages/CompareVote";
 import CompareLobby from "./pages/CompareLobby";
 import JudgeLobby from "./pages/JudgeLobby";
+import AutoPointTable from "./pages/AutoPointTable";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
             <Route path="/scorelogin" element={<ScoreLogin />} />
             <Route path="/scoreloginauto" element={<ScoreLoginAuto />} />
             <Route path="/autoscoretable" element={<AutoScoreTable />} />
+            <Route path="/autopointtable" element={<AutoPointTable />} />
             <Route path="/comparevote" element={<CompareVote />} />
             <Route path="/lobby" element={<JudgeLobby />} />
           </Routes>

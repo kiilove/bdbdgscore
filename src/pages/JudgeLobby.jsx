@@ -42,6 +42,7 @@ const JudgeLobby = () => {
   const [compareStatus, setCompareStatus] = useState({});
   const [judgeCompareVoted, setJudgeCompareVoted] = useState();
   const [navigateType, setNavigateType] = useState("");
+  const [cardType, setCardType] = useState("score");
 
   const [localJudgeUid, setLocalJudgeUid] = useState();
   const [currentplayersFinalArray, setCurrentPlayersFinalArray] = useState([]);
@@ -101,6 +102,13 @@ const JudgeLobby = () => {
 
     if (stageId && stagesAssign?.length > 0) {
       findCurrentStage = stagesAssign.find((f) => f.stageId === stageId);
+      //console.log(findCurrentStage);
+      if (findCurrentStage.categoryJudgeType === "랭킹형(짜찝표)") {
+        setCardType("score");
+      }
+      if (findCurrentStage.categoryJudgeType === "점수형") {
+        setCardType("point");
+      }
       grades = [...findCurrentStage.grades];
 
       if (machineId && grades[0].gradeId) {
@@ -145,7 +153,7 @@ const JudgeLobby = () => {
     players,
     topPlayers = []
   ) => {
-    const { stageId, stageNumber } = stageInfo;
+    const { stageId, stageNumber, categoryJudgeType } = stageInfo;
     const {
       judgeUid,
       judgeName,
@@ -290,6 +298,7 @@ const JudgeLobby = () => {
         stageNumber,
         categoryId,
         categoryTitle,
+        categoryJudgeType,
         gradeId,
         gradeTitle,
         originalPlayers: matchedOriginalPlayers,
@@ -379,6 +388,9 @@ const JudgeLobby = () => {
   };
 
   const handleNavigate = async ({ actionType }) => {
+    const collectionInfo = `currentStage/${contestInfo.id}/judges/${
+      currentJudgeInfo.seatIndex - 1
+    }`;
     switch (actionType) {
       case "login":
         navigate("/scorelogin", {
@@ -386,10 +398,44 @@ const JudgeLobby = () => {
           state: { currentStageInfo, currentJudgeInfo, contestInfo },
         });
         break;
-      case "score":
-        const collectionInfo = `currentStage/${contestInfo.id}/judges/${
-          currentJudgeInfo.seatIndex - 1
-        }`;
+      case "judge":
+        try {
+          await updateRealtimeData
+            .updateData(collectionInfo, {
+              isEnd: false,
+              isLogined: true,
+              seatIndex: currentJudgeInfo.seatIndex,
+            })
+            .then(() => {
+              if (cardType === "score") {
+                navigate("/autoscoretable", {
+                  replace: true,
+                  state: {
+                    currentStageInfo,
+                    currentJudgeInfo,
+                    contestInfo,
+                    compareInfo: { ...realtimeData?.compares },
+                  },
+                });
+              }
+              if (cardType === "point") {
+                navigate("/autopointtable", {
+                  replace: true,
+                  state: {
+                    currentStageInfo,
+                    currentJudgeInfo,
+                    contestInfo,
+                    compareInfo: { ...realtimeData?.compares },
+                  },
+                });
+              }
+            });
+        } catch (error) {
+          console.log(error);
+        }
+
+        break;
+      case "point":
         try {
           await updateRealtimeData
             .updateData(collectionInfo, {
@@ -398,7 +444,7 @@ const JudgeLobby = () => {
               seatIndex: currentJudgeInfo.seatIndex,
             })
             .then(() =>
-              navigate("/autoscoretable", {
+              navigate("/autopointtable", {
                 replace: true,
                 state: {
                   currentStageInfo,
@@ -611,7 +657,7 @@ const JudgeLobby = () => {
                       심사페이지로 이동합니다.
                     </span>
                     <button
-                      onClick={() => handleNavigate({ actionType: "score" })}
+                      onClick={() => handleNavigate({ actionType: "judge" })}
                       className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
                     >
                       <div className="flex w-full">
@@ -635,7 +681,7 @@ const JudgeLobby = () => {
                     심사페이지로 이동합니다.
                   </span>
                   <button
-                    onClick={() => handleNavigate({ actionType: "score" })}
+                    onClick={() => handleNavigate({ actionType: "judge" })}
                     className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
                   >
                     <div className="flex w-full">

@@ -20,6 +20,7 @@ const ScoreLogin = () => {
   const [message, setMessage] = useState({});
   const [machineId, setMachineId] = useState(null);
   const [contestInfo, setContestInfo] = useState({});
+  const [cardType, setCardType] = useState("");
 
   const [password, setPassword] = useState("");
   const [passwordInputs, setPasswordInputs] = useState(["", "", "", ""]);
@@ -149,6 +150,7 @@ const ScoreLogin = () => {
 
   useEffect(() => {
     console.log(location);
+    
   }, [location]);
 
   useEffect(() => {
