@@ -341,6 +341,7 @@ const AutoScoreTable = () => {
     }
   };
   const handleSaveScoreCard = async (propData) => {
+    console.log(propData);
     let scoreCardsArray = [];
 
     console.log(propData);
@@ -360,6 +361,7 @@ const AutoScoreTable = () => {
         );
 
         const {
+          contestId,
           categoryId,
           categoryTitle,
           categoryJudgeType,
@@ -384,6 +386,7 @@ const AutoScoreTable = () => {
 
           const newInfo = {
             docuId: generateUUID(),
+            contestId,
             categoryId,
             categoryTitle,
             categoryJudgeType,
@@ -535,6 +538,7 @@ const AutoScoreTable = () => {
   };
 
   useEffect(() => {
+    //console.log(currentStageInfo);
     if (currentStageInfo && compareData?.scoreMode !== "compare") {
       const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
         return (

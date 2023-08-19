@@ -630,6 +630,12 @@ const JudgeLobby = () => {
         </div>
       )}
       <div className="flex w-full h-full flex-col bg-white justify-start items-center gap-y-2">
+        <div
+          className="flex"
+          onClick={() => navigate("/setting", { replace: true })}
+        >
+          기기설정
+        </div>
         <div className="flex text-xl font-bold  bg-gray-100 rounded-lg w-full justify-center items-center text-gray-700 flex-col  h-screen ">
           <ConfirmationModal
             isOpen={msgOpen}
