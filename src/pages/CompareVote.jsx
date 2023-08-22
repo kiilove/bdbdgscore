@@ -24,6 +24,7 @@ const CompareVote = () => {
   const [contestInfo, setContestInfo] = useState({});
   const [stageInfo, setStageInfo] = useState({});
   const [originalPlayers, setOriginalPlayers] = useState([]);
+  const [subPlayers, setSubPlayers] = useState([]);
   const [judgeInfo, setJudgeInfo] = useState({});
   const [compareInfo, setCompareInfo] = useState({});
   const [judgeVoted, setJudgeVoted] = useState([]);
@@ -80,12 +81,21 @@ const CompareVote = () => {
     const { currentJudgeInfo, currentStageInfo, contestInfo, compareInfo } =
       location.state;
 
+    let propSubPlayers = [];
+
+    if (location?.state?.propSubPlayers?.length > 0) {
+      propSubPlayers = [...location.state.propSubPlayers];
+    }
+
+    //console.log(propSubPlayers);
+
     const promises = [];
     promises.push(setJudgeInfo({ ...currentJudgeInfo }));
     promises.push(setStageInfo([...currentStageInfo]));
     promises.push(setContestInfo({ ...contestInfo }));
     promises.push(setCompareInfo({ ...compareInfo }));
     promises.push(setOriginalPlayers([...currentStageInfo[0].originalPlayers]));
+    promises.push(setSubPlayers([...propSubPlayers]));
     promises.push(setIsLoading(false));
 
     Promise.all(promises);
@@ -96,6 +106,7 @@ const CompareVote = () => {
     navigate("/lobby", { replace: true });
   };
 
+  //모든 선수명단과 n차 선수명단 선택불가 처리해야함
   const handleVotedPlayers = (playerUid, playerNumber) => {
     if (!playerUid && !playerNumber) {
       return;
@@ -290,30 +301,58 @@ const CompareVote = () => {
               </div>
             )} */}
 
-            <div className="flex w-full h-auto p-2 bg-gray-400 rounded-lg flex-col gap-y-2">
-              <div className="flex bg-gray-100 w-full h-auto p-2 rounded-lg">
-                전체 선수명단
-              </div>
-              <div className="flex bg-gray-100 w-full h-auto p-2 rounded-lg gap-2 flex-wrap box-border">
-                {originalPlayers?.length > 0 &&
-                  originalPlayers
-                    .sort((a, b) => a.playerIndex - b.playerIndex)
-                    .map((matched, mIdx) => {
-                      const { playerUid, playerNumber } = matched;
+            {compareInfo.scoreMode === "topWithSub" ? (
+              <div className="flex w-full h-auto p-2 bg-blue-400 rounded-lg flex-col gap-y-2">
+                <div className="flex bg-blue-100 w-full h-auto p-2 rounded-lg">
+                  {compareInfo.compareIndex - 1}차 비교심사 명단
+                </div>
+                <div className="flex bg-gray-100 w-full h-auto p-2 rounded-lg gap-2 flex-wrap box-border">
+                  {subPlayers?.length > 0 &&
+                    subPlayers
+                      .sort((a, b) => a.playerIndex - b.playerIndex)
+                      .map((matched, mIdx) => {
+                        const { playerUid, playerNumber } = matched;
 
-                      return (
-                        <button
-                          className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
-                          onClick={() =>
-                            handleVotedPlayers(playerUid, playerNumber)
-                          }
-                        >
-                          {playerNumber}
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
+                            onClick={() =>
+                              handleVotedPlayers(playerUid, playerNumber)
+                            }
+                          >
+                            {playerNumber}
+                          </button>
+                        );
+                      })}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex w-full h-auto p-2 bg-gray-400 rounded-lg flex-col gap-y-2">
+                <div className="flex bg-gray-100 w-full h-auto p-2 rounded-lg">
+                  전체 선수명단
+                </div>
+                <div className="flex bg-gray-100 w-full h-auto p-2 rounded-lg gap-2 flex-wrap box-border">
+                  {originalPlayers?.length > 0 &&
+                    originalPlayers
+                      .sort((a, b) => a.playerIndex - b.playerIndex)
+                      .map((matched, mIdx) => {
+                        const { playerUid, playerNumber } = matched;
+
+                        return (
+                          <button
+                            className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
+                            onClick={() =>
+                              handleVotedPlayers(playerUid, playerNumber)
+                            }
+                          >
+                            {playerNumber}
+                          </button>
+                        );
+                      })}
+                </div>
+              </div>
+            )}
+
             {compareInfo.playerLength === judgeVoted.length && (
               <div className="flex w-full h-auto ">
                 <button

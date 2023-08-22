@@ -81,10 +81,10 @@ const AutoScoreTable = () => {
       }
     };
 
-    updateArray(stage.originalPlayers, "playerUid", playerUid, {
-      playerScore: newScoreValue,
-    });
     updateArray(stage.matchedTopRange, "scoreValue", scoreValue, {
+      scoreOwner: newPlayerUid,
+    });
+    updateArray(stage.matchedSubRange, "scoreValue", scoreValue, {
       scoreOwner: newPlayerUid,
     });
     updateArray(stage.matchedNormalRange, "scoreValue", scoreValue, {
@@ -96,7 +96,13 @@ const AutoScoreTable = () => {
     updateArray(stage.matchedTopPlayers, "playerUid", playerUid, {
       playerScore: newScoreValue,
     });
+    updateArray(stage.matchedSubPlayers, "playerUid", playerUid, {
+      playerScore: newScoreValue,
+    });
     updateArray(stage.matchedNormalPlayers, "playerUid", playerUid, {
+      playerScore: newScoreValue,
+    });
+    updateArray(stage.originalPlayers, "playerUid", playerUid, {
       playerScore: newScoreValue,
     });
 
@@ -539,7 +545,7 @@ const AutoScoreTable = () => {
 
   useEffect(() => {
     //console.log(currentStageInfo);
-    if (currentStageInfo && compareData?.scoreMode !== "compare") {
+    if (currentStageInfo && compareData?.scoreMode === "all") {
       const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
         return (
           stage.originalRange &&
@@ -550,11 +556,28 @@ const AutoScoreTable = () => {
       setValidateScoreCard(hasUndefinedScoreOwner);
     }
 
-    if (currentStageInfo && compareData?.scoreMode === "compare") {
+    if (currentStageInfo && compareData?.scoreMode === "topOnly") {
       const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
         return (
           stage.matchedTopRange &&
           stage.matchedTopRange.some((range) => range.scoreOwner === undefined)
+        );
+      });
+
+      setValidateScoreCard(hasUndefinedScoreOwner);
+    }
+
+    if (currentStageInfo && compareData?.scoreMode === "topWithSub") {
+      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
+        return (
+          (stage.matchedTopRange &&
+            stage.matchedTopRange.some(
+              (range) => range.scoreOwner === undefined
+            )) ||
+          (stage.matchedSubRange && // 추가: matchedSubRange 체크
+            stage.matchedSubRange.some(
+              (range) => range.scoreOwner === undefined
+            ))
         );
       });
 
@@ -813,8 +836,98 @@ const AutoScoreTable = () => {
                           })}
                       </div>
                       <div className="flex h-full rounded-md gap-y-2 flex-col w-full px-4">
+                        {stage.matchedSubPlayers?.length > 0 &&
+                          compareData?.scoreMode === "topWithSub" &&
+                          stage.matchedSubPlayers.map((matched, mIdx) => {
+                            const { playerNumber, playerScore, playerUid } =
+                              matched;
+
+                            return (
+                              <div className="flex w-full h-full rounded-md gap-x-2">
+                                <div className="flex w-32 h-auto flex-col gap-y-2 justify-center items-center bg-blue-100 rounded-lg border border-gray-200">
+                                  <span className="text-4xl font-semibold">
+                                    {playerNumber}
+                                  </span>
+                                </div>
+                                <div className="flex w-32 font-semibold justify-center items-center bg-blue-300 rounded-lg border border-gray-200">
+                                  {playerScore !== 0 && playerScore < 100 && (
+                                    <span className="text-4xl">
+                                      {playerScore}
+                                    </span>
+                                  )}
+                                  {playerScore >= 100 && (
+                                    <span className="text-4xl">제외</span>
+                                  )}
+                                </div>
+                                <div className="flex w-full h-full justify-center items-center bg-white rounded-lg border border-gray-500 flex-wrap p-1 gap-1">
+                                  <div
+                                    className="flex w-full h-full flex-wrap gap-2"
+                                    style={{ minHeight: "80px" }}
+                                  >
+                                    {stage.matchedSubRange?.length > 0 &&
+                                      stage.matchedSubRange
+                                        .sort(
+                                          (a, b) => a.scoreIndex - b.scoreIndex
+                                        )
+                                        .map((range, rIdx) => {
+                                          const { scoreValue, scoreOwner } =
+                                            range;
+                                          return (
+                                            <>
+                                              {scoreOwner === undefined &&
+                                              matched.playerScore === 0 ? (
+                                                <button
+                                                  className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600"
+                                                  onClick={() =>
+                                                    handleScore(
+                                                      playerUid,
+                                                      scoreValue,
+                                                      sIdx,
+                                                      "score"
+                                                    )
+                                                  }
+                                                >
+                                                  {scoreValue}
+                                                </button>
+                                              ) : scoreOwner === playerUid &&
+                                                matched.playerScore ===
+                                                  scoreValue ? (
+                                                <button
+                                                  className="flex w-full h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-800 text-3xl text-gray-100"
+                                                  onClick={() =>
+                                                    handleScore(
+                                                      playerUid,
+                                                      scoreValue,
+                                                      sIdx,
+                                                      "unScore"
+                                                    )
+                                                  }
+                                                >
+                                                  <div className="flex w-18 h-18 rounded-full border border-gray-100 p-2">
+                                                    <AiFillLock />
+                                                  </div>
+                                                </button>
+                                              ) : scoreOwner !== playerUid &&
+                                                playerScore === 0 ? (
+                                                <div className="flex w-20 h-20 p-2 rounded-md border border-blue-300 justify-center items-center  bg-blue-100 text-3xl text-gray-600 cursor-not-allowed">
+                                                  <div className="flex w-18 h-18 rounded-full border-blue-400 p-2 text-blue-400">
+                                                    <AiFillMinusCircle />
+                                                  </div>
+                                                </div>
+                                              ) : null}
+                                            </>
+                                          );
+                                        })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                      <div className="flex h-full rounded-md gap-y-2 flex-col w-full px-4">
                         {stage.matchedNormalPlayers?.length > 0 &&
-                          compareData?.scoreMode !== "compare" &&
+                          (compareData?.scoreMode === "all" ||
+                            !compareData?.status?.compareStart) &&
                           stage.matchedNormalPlayers.map((matched, mIdx) => {
                             const { playerNumber, playerScore, playerUid } =
                               matched;
