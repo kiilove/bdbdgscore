@@ -71,9 +71,10 @@ const CompareSetting = ({
   const { currentContest } = useContext(CurrentContestContext);
 
   const fetchPool = async (gradeId, compareId, judgeAssignId) => {
+    console.log(gradeId, compareId);
     if (gradeId === undefined || compareId === undefined) {
       setMessage({
-        body: "데이터 로드에 문제가 발생했습니다.",
+        body: "데이터 로드에 문제가 발생했습니다.2",
         body2: "다시 시도해주세요.",
         isButton: true,
         confirmButtonText: "확인",
@@ -127,7 +128,7 @@ const CompareSetting = ({
         }))
       );
     } catch (error) {
-      console.log(error);
+      console.log("error", error);
     }
   };
 
@@ -186,13 +187,15 @@ const CompareSetting = ({
   const handleAdd = async (contestId, compareId) => {
     const collection = `currentStage/${contestId}/compare`;
     const compareIndex = compareArray.length + 1;
-
+    console.log(gradesArray);
+    console.log(stageInfo);
     const findIndexGrades = gradesArray.findIndex(
       (f) => f.contestGradeId === stageInfo.grades[0].gradeId
     );
+    console.log(findIndexGrades);
     if (findIndexGrades === -1) {
       setMessage({
-        body: "데이터 로드에 문제가 발생했습니다.",
+        body: "체급데이터 로드에 문제가 발생했습니다.1",
         body2: "다시 시도해주세요.",
         isButton: true,
         confirmButtonText: "확인",
