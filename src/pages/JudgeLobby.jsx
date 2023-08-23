@@ -160,18 +160,17 @@ const JudgeLobby = () => {
       realtimeData?.compares?.players?.length > 0 &&
       realtimeData.compares.status.compareIng
     ) {
-      console.log("??");
       topPlayers = [...realtimeData.compares.players];
       console.log(topPlayers);
       compareMode = realtimeData.compares;
     }
 
     if (realtimeData?.compares?.compareIndex > 1) {
-      //이전 회차 top선수를 찾아야하므로 -2가 되어야 한다.
+      //이전 회차 top선수를 찾아야하므로 -1 되어야 한다.
       findCurrentCompare = {
-        ...comparesArray[comparesArray?.length - 2],
+        ...comparesArray[comparesArray?.length - 1],
       };
-      console.log(currentComparesArray);
+      console.log(findCurrentCompare);
     }
 
     if (
@@ -195,7 +194,7 @@ const JudgeLobby = () => {
     }
   };
 
-  const makeScoreCard = (
+  const makeScoreCardNew = (
     stageInfo,
     judgeInfo,
     grades,
@@ -204,7 +203,18 @@ const JudgeLobby = () => {
     prevComparePlayers = [],
     realtimeComparemode = {}
   ) => {
-    console.log(prevComparePlayers);
+    let scoreCardResult = {};
+    let comparePlayers = [];
+    let matchedOriginalPlayers = [];
+    let matchedTopPlayers = [];
+    let matchedSubPlayers = [];
+    let matchedNormalPlayers = [];
+    let matchedExtraPlayers = [];
+    let matchedOriginalRange = [];
+    let matchedTopRange = [];
+    let matchedSubRange = [];
+    let matchedNormalRange = [];
+    let matchedExtraRange = [];
     const { stageId, stageNumber, categoryJudgeType } = stageInfo;
     const {
       judgeUid,
@@ -215,7 +225,128 @@ const JudgeLobby = () => {
       onedayPassword,
     } = judgeInfo;
 
-    console.log(judgePoolsArray);
+    const judgeSignature = judgePoolsArray.find(
+      (f) => f.judgeUid === judgeUid
+    ).judgeSignature;
+
+    //점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
+    //playerspointIfno랑 변수명을 다르게 하기 위해 players를 빼고 변수명 정의
+
+    const handleCheckIsCompared = (realtimeData) =>
+      realtimeData &&
+      realtimeData.compares &&
+      typeof realtimeData.compares.status === "object" &&
+      Object.values(realtimeData.compares.status).some(
+        (value) => value === true
+      );
+
+    //1. 비교심사인지 확인
+    if (handleCheckIsCompared(realtimeData)) {
+      console.log("비교심사");
+    } else {
+      //일반모드 스코어인포 만들기
+      const {
+        categoryId,
+        categoryTitle,
+        gradeId,
+        gradeTitle,
+        originalPlayers,
+        originalRange,
+        normalPlayers,
+        normalRange,
+      } = normalModeScoreCard(grades, players);
+
+      console.log(normalModeScoreCard(grades, players));
+      scoreCardResult = {
+        contestId,
+        stageId,
+        stageNumber,
+        categoryJudgeType,
+        judgeUid,
+        judgeName,
+        judgeSignature,
+        onedayPassword,
+        isHead,
+        seatIndex,
+        categoryId,
+        categoryTitle,
+        gradeId,
+        gradeTitle,
+        originalPlayers: [...originalPlayers],
+        originalRange: [...originalRange],
+        matchedNormalPlayers: [...normalPlayers],
+        matchedNormalRange: [...normalRange],
+        matchedTopPlayers,
+        matchedTopRange,
+        matchedSubPlayers,
+        matchedSubRange,
+        matchedExtraPlayers,
+        matchedExtraRange,
+      };
+    }
+
+    return scoreCardResult;
+  };
+
+  const normalModeScoreCard = (propGrades, playersArray) => {
+    //stageId, stageNumber, categoryJudgeType
+    // judgeUid,judgeName,isHead,seatIndex,contestId,onedayPassword
+    const { categoryId, categoryTitle, gradeId, gradeTitle } = propGrades;
+    console.log(propGrades);
+    const playerPointArray = PointArray.map((point, pIdx) => {
+      const { title } = point;
+      return { title, point: undefined };
+    });
+    const filterOriginalPlayers = playersArray
+      .filter((f) => f.contestGradeId === gradeId)
+      .sort((a, b) => a.playerIndex - b.playerIndex);
+    const originalPlayersInfo = filterOriginalPlayers.map((player, pIdx) => {
+      const newPlayers = { ...player, playerScore: 0, playerPointArray };
+      return newPlayers;
+    });
+
+    const originalRangeInfo = originalPlayersInfo.map((player, pIdx) => {
+      return {
+        scoreValue: pIdx + 1,
+        scoreIndex: pIdx,
+        scoreOwner: undefined,
+      };
+    });
+
+    const normalPlayersInfo = [...originalPlayersInfo];
+    const normalRangeInfo = [...originalRangeInfo];
+
+    return {
+      categoryId,
+      categoryTitle,
+      gradeId,
+      gradeTitle,
+      originalPlayers: originalPlayersInfo,
+      originalRange: originalRangeInfo,
+      normalPlayers: normalPlayersInfo,
+      normalRange: normalRangeInfo,
+    };
+  };
+
+  const makeScoreCard = (
+    stageInfo,
+    judgeInfo,
+    grades,
+    players,
+    topPlayers = [],
+    prevComparePlayers = [],
+    realtimeComparemode = {}
+  ) => {
+    const { stageId, stageNumber, categoryJudgeType } = stageInfo;
+    const {
+      judgeUid,
+      judgeName,
+      isHead,
+      seatIndex,
+      contestId,
+      onedayPassword,
+    } = judgeInfo;
+
     const judgeSignature = judgePoolsArray.find(
       (f) => f.judgeUid === judgeUid
     ).judgeSignature;
@@ -239,14 +370,21 @@ const JudgeLobby = () => {
       let matchedExtraRange = [];
 
       const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
-      if (topPlayers.length > 0) {
+
+      if (
+        realtimeData.compares.scoreMode === "topOnly" &&
+        topPlayers.length > 0
+      ) {
         comparePlayers = [...topPlayers];
       }
 
-      if (prevComparePlayers.length > 0) {
+      if (
+        realtimeData.compares.scoreMode === "topWithSub " &&
+        prevComparePlayers.length > 0
+      ) {
         comparePlayers = [...prevComparePlayers];
       }
-      console.log(comparePlayers);
+
       const filterPlayers = players
         .filter((player) => player.contestGradeId === gradeId)
         .sort((a, b) => a.playerIndex - b.playerIndex);
@@ -273,7 +411,6 @@ const JudgeLobby = () => {
       const filterSubPlayers = comparePlayers.filter((fp) =>
         topPlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
       );
-      console.log(filterSubPlayers);
 
       //이전에는 top을 제외한 인원을 normal로 처리하면 되었지만
       //다회차 비교심사시 한번 더 그룹화 해야하고
@@ -484,6 +621,7 @@ const JudgeLobby = () => {
     const collectionInfo = `currentStage/${contestInfo.id}/judges/${
       currentJudgeInfo.seatIndex - 1
     }`;
+    let prevTop = [];
     switch (actionType) {
       case "login":
         navigate("/scorelogin", {
@@ -553,10 +691,11 @@ const JudgeLobby = () => {
 
         break;
       case "vote":
-        const prevTop = [
-          ...currentComparesArray[realtimeData.compares.compareIndex - 2]
-            ?.players,
-        ];
+        if (realtimeData?.compares?.compareIndex >= 1) {
+          prevTop = [
+            ...currentComparesArray[currentComparesArray.length - 1]?.players,
+          ];
+        }
 
         const collectionInfoVote = `currentStage/${
           contestInfo.id
@@ -851,6 +990,36 @@ const JudgeLobby = () => {
                   <div className="flex flex-col items-center gap-y-2">
                     <span className="text-2xl h-10">
                       비교심사가 시작됩니다.
+                    </span>
+                    <span className="text-2xl h-10">
+                      {realtimeData?.compares?.compareIndex}차 비교심사
+                      투표화면으로 이동합니다.
+                    </span>
+                    <button
+                      onClick={() => handleNavigate({ actionType: "vote" })}
+                      className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
+                    >
+                      <div className="flex w-full">
+                        <span>투표화면</span>
+                      </div>
+                      <div className="flex  justify-center items-center w-20 h-20 relative">
+                        <CgSpinner
+                          className="animate-spin w-16 h-16 "
+                          style={{ animationDuration: "1.5s" }}
+                        />
+                        <span className="absolute inset-0 flex justify-center items-center">
+                          {countdown}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              {judgeLogined &&
+                compareStatus.compareStart &&
+                judgeCompareVoted === "투표중" && (
+                  <div className="flex flex-col items-center gap-y-2">
+                    <span className="text-2xl h-10">
+                      비교심사 투표가 완료되지 않았습니다.
                     </span>
                     <span className="text-2xl h-10">
                       {realtimeData?.compares?.compareIndex}차 비교심사

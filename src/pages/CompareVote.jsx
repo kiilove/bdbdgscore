@@ -11,6 +11,7 @@ import {
   useFirestoreGetDocument,
   useFirestoreUpdateData,
 } from "../hooks/useFirestores";
+import { AiFillCheckCircle, AiFillMinusCircle } from "react-icons/ai";
 
 const CompareVote = () => {
   const location = useLocation();
@@ -78,14 +79,27 @@ const CompareVote = () => {
   };
   const initMatched = () => {
     console.log(location.state);
+    let newOriginalPlayers = [];
+
+    let newSubPlayers = [];
     const { currentJudgeInfo, currentStageInfo, contestInfo, compareInfo } =
       location.state;
 
-    let propSubPlayers = [];
-
     if (location?.state?.propSubPlayers?.length > 0) {
-      propSubPlayers = [...location.state.propSubPlayers];
+      newSubPlayers = location.state.propSubPlayers.map((player, pIdx) => {
+        const { playerNumber, playerUid } = player;
+        return { playerNumber, playerUid, selected: false };
+      });
     }
+
+    newOriginalPlayers = currentStageInfo[0].originalPlayers.map(
+      (player, pIdx) => {
+        const { playerNumber, playerUid } = player;
+        return { playerNumber, playerUid, selected: false };
+      }
+    );
+
+    console.log(newOriginalPlayers);
 
     //console.log(propSubPlayers);
 
@@ -94,8 +108,8 @@ const CompareVote = () => {
     promises.push(setStageInfo([...currentStageInfo]));
     promises.push(setContestInfo({ ...contestInfo }));
     promises.push(setCompareInfo({ ...compareInfo }));
-    promises.push(setOriginalPlayers([...currentStageInfo[0].originalPlayers]));
-    promises.push(setSubPlayers([...propSubPlayers]));
+    promises.push(setOriginalPlayers([...newOriginalPlayers]));
+    promises.push(setSubPlayers([...newSubPlayers]));
     promises.push(setIsLoading(false));
 
     Promise.all(promises);
@@ -107,7 +121,9 @@ const CompareVote = () => {
   };
 
   //모든 선수명단과 n차 선수명단 선택불가 처리해야함
-  const handleVotedPlayers = (playerUid, playerNumber) => {
+  const handleVotedPlayers = (playerUid, playerNumber, listType) => {
+    let newOriginalPlayers = [...originalPlayers];
+    let newSubPlayers = [...subPlayers];
     if (!playerUid && !playerNumber) {
       return;
     }
@@ -121,16 +137,32 @@ const CompareVote = () => {
       setMsgOpen(true);
       return;
     }
+    const selectedInfo = { playerNumber, playerUid, selected: true };
     const newJudgeVoted = [...judgeVoted];
-    const newOriginalPlayers = [...originalPlayers];
-    const findIndexOriginalPlayers = newOriginalPlayers.findIndex(
-      (f) => f.playerNumber === playerNumber
-    );
-    newOriginalPlayers.splice(findIndexOriginalPlayers, 1);
+    if (listType === "original") {
+      const findIndexOriginalPlayers = newOriginalPlayers.findIndex(
+        (f) => f.playerNumber === playerNumber
+      );
+      newOriginalPlayers.splice(findIndexOriginalPlayers, 1, {
+        ...selectedInfo,
+      });
+    }
+
+    if (listType === "sub") {
+      console.log(newSubPlayers);
+      const findIndexSubPlayers = newSubPlayers.findIndex(
+        (f) => f.playerNumber === playerNumber
+      );
+      console.log(findIndexSubPlayers);
+      newSubPlayers.splice(findIndexSubPlayers, 1, {
+        ...selectedInfo,
+      });
+    }
+
     const newJudgeVotedInfo = { playerUid, playerNumber };
 
     newJudgeVoted.push({ ...newJudgeVotedInfo });
-    console.log(newJudgeVotedInfo);
+
     const promises = [];
     promises.push(
       setJudgeVoted(() => [
@@ -138,29 +170,53 @@ const CompareVote = () => {
       ])
     );
     promises.push(setOriginalPlayers(() => [...newOriginalPlayers]));
+    promises.push(setSubPlayers(() => [...newSubPlayers]));
     Promise.all(promises);
   };
 
-  const handleUnVotedPlayers = (playerUid, playerNumber) => {
+  const handleUnVotedPlayers = (playerUid, playerNumber, listType) => {
+    let newOriginalPlayers = [...originalPlayers];
+    let newSubPlayers = [...subPlayers];
     if (!playerUid && !playerNumber) {
       return;
     }
+    const selectedInfo = { playerNumber, playerUid, selected: false };
 
-    console.log(playerNumber);
     const newJudgeVoted = [...judgeVoted];
-    const newOriginalPlayers = [...originalPlayers];
     const findIndexJudgeVoted = newJudgeVoted.findIndex(
       (f) => f.playerNumber === playerNumber
     );
     newJudgeVoted.splice(findIndexJudgeVoted, 1);
     const newOriginalPlayersInfo = { playerUid, playerNumber };
 
-    newOriginalPlayers.push({ ...newOriginalPlayersInfo });
+    if (listType === "original") {
+      const findIndexOriginalPlayers = newOriginalPlayers.findIndex(
+        (f) => f.playerNumber === playerNumber
+      );
+      newOriginalPlayers.splice(findIndexOriginalPlayers, 1, {
+        ...selectedInfo,
+      });
+    }
+
+    if (listType === "sub") {
+      const findIndexSubPlayers = newSubPlayers.findIndex(
+        (f) => f.playerNumber === playerNumber
+      );
+      newSubPlayers.splice(findIndexSubPlayers, 1, {
+        ...selectedInfo,
+      });
+    }
+
     const promises = [];
     promises.push(setJudgeVoted(() => [...newJudgeVoted]));
     promises.push(
       setOriginalPlayers(() => [
         ...newOriginalPlayers.sort((a, b) => a.playerNumber - b.playerNumber),
+      ])
+    );
+    promises.push(
+      setSubPlayers(() => [
+        ...newSubPlayers.sort((a, b) => a.playerNumber - b.playerNumber),
       ])
     );
     Promise.all(promises);
@@ -266,7 +322,10 @@ const CompareVote = () => {
                                     onClick={() =>
                                       handleUnVotedPlayers(
                                         playerUid,
-                                        playerNumber
+                                        playerNumber,
+                                        compareInfo.voteRange === "sub"
+                                          ? "sub"
+                                          : "original"
                                       )
                                     }
                                   >
@@ -301,7 +360,7 @@ const CompareVote = () => {
               </div>
             )} */}
 
-            {compareInfo.scoreMode === "topWithSub" ? (
+            {compareInfo.voteRange === "voted" ? (
               <div className="flex w-full h-auto p-2 bg-blue-400 rounded-lg flex-col gap-y-2">
                 <div className="flex bg-blue-100 w-full h-auto p-2 rounded-lg">
                   {compareInfo.compareIndex - 1}차 비교심사 명단
@@ -311,17 +370,29 @@ const CompareVote = () => {
                     subPlayers
                       .sort((a, b) => a.playerIndex - b.playerIndex)
                       .map((matched, mIdx) => {
-                        const { playerUid, playerNumber } = matched;
+                        const { playerUid, playerNumber, selected } = matched;
 
                         return (
-                          <button
-                            className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
-                            onClick={() =>
-                              handleVotedPlayers(playerUid, playerNumber)
-                            }
-                          >
-                            {playerNumber}
-                          </button>
+                          <>
+                            {selected ? (
+                              <div className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl text-green-500">
+                                <AiFillCheckCircle />
+                              </div>
+                            ) : (
+                              <button
+                                className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
+                                onClick={() =>
+                                  handleVotedPlayers(
+                                    playerUid,
+                                    playerNumber,
+                                    "sub"
+                                  )
+                                }
+                              >
+                                {playerNumber}
+                              </button>
+                            )}
+                          </>
                         );
                       })}
                 </div>
@@ -336,17 +407,29 @@ const CompareVote = () => {
                     originalPlayers
                       .sort((a, b) => a.playerIndex - b.playerIndex)
                       .map((matched, mIdx) => {
-                        const { playerUid, playerNumber } = matched;
-
+                        const { playerUid, playerNumber, selected } = matched;
+                        console.log(matched);
                         return (
-                          <button
-                            className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
-                            onClick={() =>
-                              handleVotedPlayers(playerUid, playerNumber)
-                            }
-                          >
-                            {playerNumber}
-                          </button>
+                          <>
+                            {selected ? (
+                              <div className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl text-green-500">
+                                <AiFillCheckCircle />
+                              </div>
+                            ) : (
+                              <button
+                                className="flex w-20 h-20 rounded-lg bg-white justify-center items-center font-semibold border-2 border-gray-400 flex-col text-4xl"
+                                onClick={() =>
+                                  handleVotedPlayers(
+                                    playerUid,
+                                    playerNumber,
+                                    "original"
+                                  )
+                                }
+                              >
+                                {playerNumber}
+                              </button>
+                            )}
+                          </>
                         );
                       })}
                 </div>

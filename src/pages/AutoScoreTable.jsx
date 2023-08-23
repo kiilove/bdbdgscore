@@ -545,6 +545,16 @@ const AutoScoreTable = () => {
 
   useEffect(() => {
     //console.log(currentStageInfo);
+    if (currentStageInfo && !compareData?.status.compareStart) {
+      const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
+        return (
+          stage.originalRange &&
+          stage.originalRange.some((range) => range.scoreOwner === undefined)
+        );
+      });
+
+      setValidateScoreCard(hasUndefinedScoreOwner);
+    }
     if (currentStageInfo && compareData?.scoreMode === "all") {
       const hasUndefinedScoreOwner = currentStageInfo.some((stage) => {
         return (
