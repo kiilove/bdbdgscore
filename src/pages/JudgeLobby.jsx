@@ -129,6 +129,7 @@ const JudgeLobby = () => {
     //   judgesAssign,
     //   playersFinalArray
     // );
+    console.log(comparesArray);
     let topPlayers = [];
     let compareMode = "";
     let grades = [];
@@ -167,9 +168,9 @@ const JudgeLobby = () => {
 
     if (realtimeData?.compares?.compareIndex > 1) {
       //이전 회차 top선수를 찾아야하므로 -1 되어야 한다.
-      findCurrentCompare = {
-        ...comparesArray[comparesArray?.length - 1],
-      };
+      findCurrentCompare = currentComparesArray.find(
+        (f) => f.compareIndex === realtimeData.compares.compareIndex - 1
+      );
       console.log(findCurrentCompare);
     }
 
@@ -194,140 +195,6 @@ const JudgeLobby = () => {
     }
   };
 
-  const makeScoreCardNew = (
-    stageInfo,
-    judgeInfo,
-    grades,
-    players,
-    topPlayers = [],
-    prevComparePlayers = [],
-    realtimeComparemode = {}
-  ) => {
-    let scoreCardResult = {};
-    let comparePlayers = [];
-    let matchedOriginalPlayers = [];
-    let matchedTopPlayers = [];
-    let matchedSubPlayers = [];
-    let matchedNormalPlayers = [];
-    let matchedExtraPlayers = [];
-    let matchedOriginalRange = [];
-    let matchedTopRange = [];
-    let matchedSubRange = [];
-    let matchedNormalRange = [];
-    let matchedExtraRange = [];
-    const { stageId, stageNumber, categoryJudgeType } = stageInfo;
-    const {
-      judgeUid,
-      judgeName,
-      isHead,
-      seatIndex,
-      contestId,
-      onedayPassword,
-    } = judgeInfo;
-
-    const judgeSignature = judgePoolsArray.find(
-      (f) => f.judgeUid === judgeUid
-    ).judgeSignature;
-
-    //점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
-    //playerspointIfno랑 변수명을 다르게 하기 위해 players를 빼고 변수명 정의
-
-    const handleCheckIsCompared = (realtimeData) =>
-      realtimeData &&
-      realtimeData.compares &&
-      typeof realtimeData.compares.status === "object" &&
-      Object.values(realtimeData.compares.status).some(
-        (value) => value === true
-      );
-
-    //1. 비교심사인지 확인
-    if (handleCheckIsCompared(realtimeData)) {
-      console.log("비교심사");
-    } else {
-      //일반모드 스코어인포 만들기
-      const {
-        categoryId,
-        categoryTitle,
-        gradeId,
-        gradeTitle,
-        originalPlayers,
-        originalRange,
-        normalPlayers,
-        normalRange,
-      } = normalModeScoreCard(grades, players);
-
-      console.log(normalModeScoreCard(grades, players));
-      scoreCardResult = {
-        contestId,
-        stageId,
-        stageNumber,
-        categoryJudgeType,
-        judgeUid,
-        judgeName,
-        judgeSignature,
-        onedayPassword,
-        isHead,
-        seatIndex,
-        categoryId,
-        categoryTitle,
-        gradeId,
-        gradeTitle,
-        originalPlayers: [...originalPlayers],
-        originalRange: [...originalRange],
-        matchedNormalPlayers: [...normalPlayers],
-        matchedNormalRange: [...normalRange],
-        matchedTopPlayers,
-        matchedTopRange,
-        matchedSubPlayers,
-        matchedSubRange,
-        matchedExtraPlayers,
-        matchedExtraRange,
-      };
-    }
-
-    return scoreCardResult;
-  };
-
-  const normalModeScoreCard = (propGrades, playersArray) => {
-    //stageId, stageNumber, categoryJudgeType
-    // judgeUid,judgeName,isHead,seatIndex,contestId,onedayPassword
-    const { categoryId, categoryTitle, gradeId, gradeTitle } = propGrades;
-    console.log(propGrades);
-    const playerPointArray = PointArray.map((point, pIdx) => {
-      const { title } = point;
-      return { title, point: undefined };
-    });
-    const filterOriginalPlayers = playersArray
-      .filter((f) => f.contestGradeId === gradeId)
-      .sort((a, b) => a.playerIndex - b.playerIndex);
-    const originalPlayersInfo = filterOriginalPlayers.map((player, pIdx) => {
-      const newPlayers = { ...player, playerScore: 0, playerPointArray };
-      return newPlayers;
-    });
-
-    const originalRangeInfo = originalPlayersInfo.map((player, pIdx) => {
-      return {
-        scoreValue: pIdx + 1,
-        scoreIndex: pIdx,
-        scoreOwner: undefined,
-      };
-    });
-
-    const normalPlayersInfo = [...originalPlayersInfo];
-    const normalRangeInfo = [...originalRangeInfo];
-
-    return {
-      categoryId,
-      categoryTitle,
-      gradeId,
-      gradeTitle,
-      originalPlayers: originalPlayersInfo,
-      originalRange: originalRangeInfo,
-      normalPlayers: normalPlayersInfo,
-      normalRange: normalRangeInfo,
-    };
-  };
-
   const makeScoreCard = (
     stageInfo,
     judgeInfo,
@@ -337,6 +204,7 @@ const JudgeLobby = () => {
     prevComparePlayers = [],
     realtimeComparemode = {}
   ) => {
+    console.log(prevComparePlayers);
     const { stageId, stageNumber, categoryJudgeType } = stageInfo;
     const {
       judgeUid,
@@ -370,7 +238,7 @@ const JudgeLobby = () => {
       let matchedExtraRange = [];
 
       const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
-
+      console.log(realtimeData.compares.scoreMode);
       if (
         realtimeData.compares.scoreMode === "topOnly" &&
         topPlayers.length > 0
@@ -379,7 +247,7 @@ const JudgeLobby = () => {
       }
 
       if (
-        realtimeData.compares.scoreMode === "topWithSub " &&
+        realtimeData.compares.scoreMode === "topWithSub" &&
         prevComparePlayers.length > 0
       ) {
         comparePlayers = [...prevComparePlayers];
