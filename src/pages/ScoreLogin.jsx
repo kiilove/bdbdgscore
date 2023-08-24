@@ -111,15 +111,25 @@ const ScoreLogin = () => {
           JSON.stringify(location?.state?.currentJudgeInfo?.judgeUid)
         )
       )
-      .then(() =>
-        navigate("/autoscoretable", {
-          state: {
-            currentStageInfo: location.state.currentStageInfo,
-            currentJudgeInfo: location.state.currentJudgeInfo,
-            contestInfo,
-          },
-        })
-      );
+      .then(() => {
+        if (location.state.currentStageInfo[0].categoryJudgeType === "point") {
+          navigate("/autopointtable", {
+            state: {
+              currentStageInfo: location.state.currentStageInfo,
+              currentJudgeInfo: location.state.currentJudgeInfo,
+              contestInfo,
+            },
+          });
+        } else {
+          navigate("/autoscoretable", {
+            state: {
+              currentStageInfo: location.state.currentStageInfo,
+              currentJudgeInfo: location.state.currentJudgeInfo,
+              contestInfo,
+            },
+          });
+        }
+      });
   };
 
   useEffect(() => {

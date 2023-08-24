@@ -19,19 +19,12 @@ const AddedModal = ({ isOpen, onConfirm, onCancel, message }) => {
   };
   return (
     <div>
-      <Modal
-        open={isOpen}
-        onClose={handleCancelClick}
-        disableBackdropClick
-        onBackdropClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
+      <Modal open={isOpen} onClose={handleCancelClick} disableBackdropClick>
         <div
           className="flex flex-col w-full bg-white justify-center items-center gap-y-2  p-8 h-screen"
           onKeyDown={handleKeyDown}
         >
-          <div className="flex flex-col gap-y-2 text-gray-800 items-center justify-center w-full">
+          <div className="flex flex-col gap-y-2 text-gray-800 items-center justify-center w-full text-xl font-semibold ">
             {message.delete === "wait" && (
               <div className="flex w-full justify-center items-center">
                 <h2>1. 데이터 정리 준비중...</h2>
@@ -120,26 +113,33 @@ const AddedModal = ({ isOpen, onConfirm, onCancel, message }) => {
               </div>
             )}
           </div>
-          {message.validate === "fail" && (
+          {/* <div className="flex w-full justify-center items-center gap-x-2">
+            <div className="flex justify-center gap-x-5 mt-5">
+              <button className="bg-white text-gray-800 rounded py-1 px-4 text-lg w-52 h-10 border border-gray-800">
+                되돌아가기
+              </button>
+            </div>
+          </div> */}
+          <div className="flex w-full justify-center items-center gap-x-2">
             <div className="flex justify-center gap-x-5 mt-5">
               <button
-                className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-sm w-52 h-10"
+                className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-lg w-52 h-10"
                 onClick={handleCancelClick}
               >
                 되돌아가기
               </button>
             </div>
-          )}
-          {message.validate === "end" && (
-            <div className="flex justify-center gap-x-5 mt-5">
-              <button
-                className="bg-blue-500 hover:bg-blue-600 text-white rounded py-1 px-4 text-sm w-52 h-10"
-                onClick={handleConfirmClick}
-              >
-                로비로 이동합니다.
-              </button>
-            </div>
-          )}
+            {message.validate === "end" && (
+              <div className="flex justify-center gap-x-5 mt-5">
+                <button
+                  className="bg-blue-700 hover:bg-blue-600 text-white rounded py-1 px-4 text-lg w-52 h-10"
+                  onClick={handleConfirmClick}
+                >
+                  로비로 이동합니다.
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </div>

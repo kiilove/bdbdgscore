@@ -215,6 +215,7 @@ const AutoPointTable = () => {
         );
 
         const {
+          contestId,
           categoryId,
           categoryTitle,
           categoryJudgeType,
@@ -234,10 +235,12 @@ const AutoPointTable = () => {
             playerGym,
             playerScore,
             playerIndex,
+            playerPointArray,
           } = original;
 
           const newInfo = {
             docuId: generateUUID(),
+            contestId,
             categoryId,
             categoryTitle,
             categoryJudgeType,
@@ -253,6 +256,7 @@ const AutoPointTable = () => {
             playerGym,
             playerIndex,
             playerScore: parseInt(playerScore),
+            playerPointArray,
           };
 
           scoreCardsArray.push(newInfo);
@@ -672,7 +676,6 @@ const AutoPointTable = () => {
                       </div> */}
                       <div className="flex w-full justify-start items-center flex-col gap-y-2">
                         {stage.matchedNormalPlayers?.length > 0 &&
-                          compareData?.scoreMode !== "compare" &&
                           stage.matchedNormalPlayers.map((matched, mIdx) => {
                             const {
                               playerNumber,

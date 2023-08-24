@@ -129,7 +129,8 @@ const JudgeLobby = () => {
     //   judgesAssign,
     //   playersFinalArray
     // );
-    console.log(comparesArray);
+    //console.log(comparesArray);
+
     let topPlayers = [];
     let compareMode = "";
     let grades = [];
@@ -141,10 +142,10 @@ const JudgeLobby = () => {
       findCurrentStage = stagesAssign.find((f) => f.stageId === stageId);
       //console.log(findCurrentStage);
       if (findCurrentStage?.categoryJudgeType === "ranking") {
-        setCardType("score");
+        setCardType(() => "score");
       }
       if (findCurrentStage?.categoryJudgeType === "point") {
-        setCardType("point");
+        setCardType(() => "point");
       }
       grades = [...findCurrentStage?.grades];
 
@@ -497,43 +498,43 @@ const JudgeLobby = () => {
           state: { currentStageInfo, currentJudgeInfo, contestInfo },
         });
         break;
-      case "judge":
-        try {
-          await updateRealtimeData
-            .updateData(collectionInfo, {
-              isEnd: false,
-              isLogined: true,
-              seatIndex: currentJudgeInfo.seatIndex,
-            })
-            .then(() => {
-              if (cardType === "score") {
-                navigate("/autoscoretable", {
-                  replace: true,
-                  state: {
-                    currentStageInfo,
-                    currentJudgeInfo,
-                    contestInfo,
-                    compareInfo: { ...realtimeData?.compares },
-                  },
-                });
-              }
-              if (cardType === "point") {
-                navigate("/autopointtable", {
-                  replace: true,
-                  state: {
-                    currentStageInfo,
-                    currentJudgeInfo,
-                    contestInfo,
-                    compareInfo: { ...realtimeData?.compares },
-                  },
-                });
-              }
-            });
-        } catch (error) {
-          console.log(error);
-        }
+      // case "judge":
+      //   try {
+      //     await updateRealtimeData
+      //       .updateData(collectionInfo, {
+      //         isEnd: false,
+      //         isLogined: true,
+      //         seatIndex: currentJudgeInfo.seatIndex,
+      //       })
+      //       .then(() => {
+      //         if (realtimeData.categoryJudgeType === "score") {
+      //           navigate("/autoscoretable", {
+      //             replace: true,
+      //             state: {
+      //               currentStageInfo,
+      //               currentJudgeInfo,
+      //               contestInfo,
+      //               compareInfo: { ...realtimeData?.compares },
+      //             },
+      //           });
+      //         }
+      //         if (realtimeData.categoryJudgeType === "point") {
+      //           navigate("/autopointtable", {
+      //             replace: true,
+      //             state: {
+      //               currentStageInfo,
+      //               currentJudgeInfo,
+      //               contestInfo,
+      //               compareInfo: { ...realtimeData?.compares },
+      //             },
+      //           });
+      //         }
+      //       });
+      //   } catch (error) {
+      //     console.log(error);
+      //   }
 
-        break;
+      //   break;
       case "point":
         try {
           await updateRealtimeData
@@ -544,7 +545,32 @@ const JudgeLobby = () => {
             })
             .then(() =>
               navigate("/autopointtable", {
-                replace: true,
+                replace: false,
+                state: {
+                  currentStageInfo,
+                  currentJudgeInfo,
+                  contestInfo,
+                  compareInfo: { ...realtimeData?.compares },
+                },
+              })
+            );
+        } catch (error) {
+          console.log(error);
+        }
+
+        break;
+
+      case "ranking":
+        try {
+          await updateRealtimeData
+            .updateData(collectionInfo, {
+              isEnd: false,
+              isLogined: true,
+              seatIndex: currentJudgeInfo.seatIndex,
+            })
+            .then(() =>
+              navigate("/autoscoretable", {
+                replace: false,
                 state: {
                   currentStageInfo,
                   currentJudgeInfo,
@@ -612,7 +638,7 @@ const JudgeLobby = () => {
       timer = setInterval(() => {
         setCountdown((prevCount) => {
           if (prevCount < 0) {
-            return 5;
+            //autoClickFunction();
           }
           return prevCount - 1;
         });
@@ -695,24 +721,24 @@ const JudgeLobby = () => {
     console.log(currentStageInfo);
   }, [currentStageInfo]);
 
-  useEffect(() => {
-    if (!judgeLogined) {
-      setNavigateType("login");
-    }
-    if (judgeLogined && !compareStatus?.compareStart) {
-      setNavigateType("score");
-    }
-    if (judgeLogined && compareStatus?.compareIng) {
-      setNavigateType("score");
-    }
-    if (
-      judgeLogined &&
-      compareStatus?.compareStart &&
-      judgeCompareVoted === "확인전"
-    ) {
-      setNavigateType("vote");
-    }
-  }, [compareStatus, judgeCompareVoted, judgeLogined]);
+  // useEffect(() => {
+  //   if (!judgeLogined) {
+  //     setNavigateType(() => "login");
+  //   }
+  //   if (judgeLogined && !compareStatus?.compareStart) {
+  //     setNavigateType(() => realtimeData?.categoryJudgeType);
+  //   }
+  //   if (judgeLogined && compareStatus?.compareIng) {
+  //     setNavigateType(() => realtimeData?.categoryJudgeType);
+  //   }
+  //   if (
+  //     judgeLogined &&
+  //     compareStatus?.compareStart &&
+  //     judgeCompareVoted === "확인전"
+  //   ) {
+  //     setNavigateType(() => "vote");
+  //   }
+  // }, [compareStatus, judgeCompareVoted, judgeLogined, countdown]);
 
   useEffect(() => {
     handleMachineCheck();
@@ -727,11 +753,55 @@ const JudgeLobby = () => {
   }, [localJudgeUid, currentJudgeInfo, realtimeData?.judges]);
 
   useEffect(() => {
-    if (countdown <= 0) {
-      console.log(navigateType);
-      //handleNavigate({ actionType: navigateType });
-    }
+    console.log(navigateType);
   }, [countdown]);
+
+  // useEffect(() => {
+  //   const timeout = setTimeout(autoClickFunction, 5000); // 5초 후에 autoClickFunction 실행
+  //   return () => clearTimeout(timeout); // 컴포넌트 언마운트 시 타임아웃 제거
+  // }, [
+  //   judgeLogined,
+  //   compareStatus,
+  //   judgeScoreEnd,
+  //   realtimeData,
+  //   judgeCompareVoted,
+  // ]);
+  const NavigationButton = ({ onClick, label }) => (
+    <div className="flex" onClick={onClick}>
+      {label}
+    </div>
+  );
+
+  const autoClickFunction = () => {
+    if (
+      judgeLogined &&
+      !compareStatus.compareStart &&
+      !compareStatus.compareIng &&
+      !judgeScoreEnd
+    ) {
+      handleNavigate({
+        actionType: realtimeData?.categoryJudgeType,
+      });
+    } else if (judgeLogined && compareStatus.compareIng && !judgeScoreEnd) {
+      handleNavigate({
+        actionType: realtimeData?.categoryJudgeType,
+      });
+    } else if (!judgeLogined) {
+      handleNavigate({ actionType: "login" });
+    } else if (
+      judgeLogined &&
+      compareStatus.compareStart &&
+      judgeCompareVoted === "확인전"
+    ) {
+      handleNavigate({ actionType: "vote" });
+    } else if (
+      judgeLogined &&
+      compareStatus.compareStart &&
+      judgeCompareVoted === "투표중"
+    ) {
+      handleNavigate({ actionType: "vote" });
+    }
+  };
 
   return (
     <>
@@ -783,16 +853,23 @@ const JudgeLobby = () => {
                 !judgeScoreEnd && (
                   <div className="flex flex-col items-center gap-y-2">
                     <span className="text-2xl h-10">
+                      {realtimeData?.categoryJudgeType === "point"
+                        ? "점수형"
+                        : "랭킹형"}{" "}
                       심사페이지로 이동합니다.
                     </span>
                     <button
-                      onClick={() => handleNavigate({ actionType: "judge" })}
+                      onClick={() =>
+                        handleNavigate({
+                          actionType: realtimeData?.categoryJudgeType,
+                        })
+                      }
                       className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
                     >
                       <div className="flex w-full">
                         <span>심사화면으로 이동</span>
                       </div>
-                      <div className="flex  justify-center items-center w-20 h-20 relative">
+                      {/* <div className="flex  justify-center items-center w-20 h-20 relative">
                         <CgSpinner
                           className="animate-spin w-16 h-16 "
                           style={{ animationDuration: "1.5s" }}
@@ -800,7 +877,7 @@ const JudgeLobby = () => {
                         <span className="absolute inset-0 flex justify-center items-center">
                           {countdown}
                         </span>
-                      </div>
+                      </div> */}
                     </button>
                   </div>
                 )}
@@ -810,13 +887,17 @@ const JudgeLobby = () => {
                     심사페이지로 이동합니다.
                   </span>
                   <button
-                    onClick={() => handleNavigate({ actionType: "judge" })}
+                    onClick={() =>
+                      handleNavigate({
+                        actionType: realtimeData?.categoryJudgeType,
+                      })
+                    }
                     className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
                   >
                     <div className="flex w-full">
                       <span>심사화면으로 이동</span>
                     </div>
-                    <div className="flex  justify-center items-center w-20 h-20 relative">
+                    {/* <div className="flex  justify-center items-center w-20 h-20 relative">
                       <CgSpinner
                         className="animate-spin w-16 h-16 "
                         style={{ animationDuration: "1.5s" }}
@@ -824,7 +905,7 @@ const JudgeLobby = () => {
                       <span className="absolute inset-0 flex justify-center items-center">
                         {countdown}
                       </span>
-                    </div>
+                    </div> */}
                   </button>
                 </div>
               )}
@@ -840,7 +921,7 @@ const JudgeLobby = () => {
                     <div className="flex w-full">
                       <span>로그인화면</span>
                     </div>
-                    <div className="flex  justify-center items-center w-20 h-20 relative">
+                    {/* <div className="flex  justify-center items-center w-20 h-20 relative">
                       <CgSpinner
                         className="animate-spin w-16 h-16 "
                         style={{ animationDuration: "1.5s" }}
@@ -848,7 +929,7 @@ const JudgeLobby = () => {
                       <span className="absolute inset-0 flex justify-center items-center">
                         {countdown}
                       </span>
-                    </div>
+                    </div> */}
                   </button>
                 </div>
               )}
@@ -870,7 +951,7 @@ const JudgeLobby = () => {
                       <div className="flex w-full">
                         <span>투표화면</span>
                       </div>
-                      <div className="flex  justify-center items-center w-20 h-20 relative">
+                      {/* <div className="flex  justify-center items-center w-20 h-20 relative">
                         <CgSpinner
                           className="animate-spin w-16 h-16 "
                           style={{ animationDuration: "1.5s" }}
@@ -878,7 +959,7 @@ const JudgeLobby = () => {
                         <span className="absolute inset-0 flex justify-center items-center">
                           {countdown}
                         </span>
-                      </div>
+                      </div> */}
                     </button>
                   </div>
                 )}
@@ -900,7 +981,7 @@ const JudgeLobby = () => {
                       <div className="flex w-full">
                         <span>투표화면</span>
                       </div>
-                      <div className="flex  justify-center items-center w-20 h-20 relative">
+                      {/* <div className="flex  justify-center items-center w-20 h-20 relative">
                         <CgSpinner
                           className="animate-spin w-16 h-16 "
                           style={{ animationDuration: "1.5s" }}
@@ -908,7 +989,7 @@ const JudgeLobby = () => {
                         <span className="absolute inset-0 flex justify-center items-center">
                           {countdown}
                         </span>
-                      </div>
+                      </div> */}
                     </button>
                   </div>
                 )}
@@ -929,149 +1010,6 @@ const JudgeLobby = () => {
                 </div>
               )}
             </div>
-            {/* {realtimeData?.compares?.status?.compareStart &&
-                  realtimeData?.compares?.judges[machineId - 1]
-                    ?.messageStatus !== "투표완료" && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-2xl h-20">
-                        {realtimeData.categoryTitle}({realtimeData.gradeTitle})
-                      </span>
-                      <span className="text-2xl h-20">
-                        비교심사가 시작됩니다.
-                      </span>
-                      <button
-                        onClick={() =>
-                          handleNavigate({ actionType: "compareVote" })
-                        }
-                        className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
-                      >
-                        <div className="flex w-full">
-                          <span>비교심사 투표창 열기</span>
-                        </div>
-                        <div className="flex  justify-center items-center w-20 h-20 relative">
-                          <CgSpinner
-                            className="animate-spin w-16 h-16 "
-                            style={{ animationDuration: "1.5s" }}
-                          />
-                          <span className="absolute inset-0 flex justify-center items-center">
-                            {compareCountdown}
-                          </span>
-                        </div>
-                      </button>
-                    </div>
-                  )}
-                {realtimeData?.compares?.status?.compareStart &&
-                  realtimeData?.compares?.judges[machineId - 1]
-                    ?.messageStatus === "투표완료" && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-2xl h-10">
-                        비교 심사 투표가 진행중입니다.
-                      </span>
-                      <span className="text-2xl h-10">
-                        잠시만 기다려주세요.
-                      </span>
-                    </div>
-                  )}
-                {realtimeData?.compares?.status?.compareStart &&
-                  realtimeData?.compares?.judges[machineId - 1]
-                    ?.messageStatus === "투표완료" && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-2xl h-10">
-                        비교 심사 투표가 진행중입니다.
-                      </span>
-                      <span className="text-2xl h-10">
-                        잠시만 기다려주세요.
-                      </span>
-                    </div>
-                  )}
-
-                {!realtimeData?.compares?.status?.compareStart &&
-                  realtimeData?.stageId &&
-                  currentStageInfo?.length > 0 &&
-                  !realtimeData.judges[machineId - 1]?.isEnd && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-2xl h-20">
-                        {currentStageInfo[0].categoryTitle}(
-                        {currentStageInfo[0].gradeTitle}) 경기를 시작합니다.
-                      </span>
-                      {currentJudgeInfo.judgeUid !== localJudgeUid ? (
-                        <>
-                          <span className="text-3xl">
-                            심판 로그인 화면으로 이동합니다.
-                          </span>
-                          <button
-                            onClick={() =>
-                              handleNavigate({ actionType: "login" })
-                            }
-                            className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
-                          >
-                            <div className="flex w-full">
-                              <span>로그인으로 이동</span>
-                            </div>
-                            <div className="flex  justify-center items-center w-20 h-20 relative">
-                              <CgSpinner
-                                className="animate-spin w-16 h-16 "
-                                style={{ animationDuration: "1.5s" }}
-                              />
-                              <span className="absolute inset-0 flex justify-center items-center">
-                                {countdown}
-                              </span>
-                            </div>
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-3xl">
-                            심사 화면으로 이동합니다.
-                          </span>
-                          <button
-                            onClick={() =>
-                              handleNavigate({ actionType: "scoreType1" })
-                            }
-                            className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-68 h-20 flex justify-center items-center"
-                          >
-                            <div className="flex w-full">
-                              <span>심사로 이동</span>
-                            </div>
-                            <div className="flex  justify-center items-center w-20 h-20 relative">
-                              <CgSpinner
-                                className="animate-spin w-16 h-16 "
-                                style={{ animationDuration: "1.5s" }}
-                              />
-                              <span className="absolute inset-0 flex justify-center items-center">
-                                {countdown}
-                              </span>
-                            </div>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                {!realtimeData?.compares?.status?.compareStart &&
-                  realtimeData?.stageId &&
-                  currentStageInfo?.length > 0 &&
-                  realtimeData.judges[machineId - 1]?.isEnd && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-2xl">
-                        집계중입니다. 집계가 완료되면 알려드리겠습니다.
-                      </span>
-                      {/* <div
-                        onClick={() => handleNavigate()}
-                        className="mt-5 px-6 py-2 bg-blue-500 text-white rounded-md  w-52 h-20 flex justify-center items-center"
-                      >
-                        <div className="flex w-full">
-                          <span>이동</span>
-                        </div>
-                        <div className="flex  justify-center items-center w-20 h-20 relative">
-                          <CgSpinner
-                            className="animate-spin w-16 h-16 "
-                            style={{ animationDuration: "1.5s" }}
-                          />
-                          <span className="absolute inset-0 flex justify-center items-center">
-                            {countdown}
-                          </span>
-                        </div>
-                       </div> */}{" "}
           </div>
         </div>
       </div>
