@@ -64,12 +64,21 @@ const ScoreLogin = () => {
     }
   };
 
-  const handleKeyDown = (refPrev, event) => {
-    if (event.key === "Backspace" && event.target.value === "") {
+  const handleKeyDown = (index, refPrev, e) => {
+    if (e.key === "Backspace" && e.target.value === "") {
       if (refPrev && refPrev.current) {
-        // 이전 ref가 실제로 존재하는지 확인
         refPrev.current.focus();
       }
+    }
+
+    console.log(pwdRefs.length, index);
+    // 엔터키를 누르면 심사진행 버튼 클릭과 동일한 동작을 처리
+    if (e.key === "Enter" && index === pwdRefs.length - 2) {
+      handleJudgeLogin(
+        "currentStage",
+        contestInfo.id,
+        location.state.currentJudgeInfo.seatIndex
+      );
     }
   };
 
@@ -96,6 +105,21 @@ const ScoreLogin = () => {
       currentJudge
     );
     console.log("Updated Data:", updatedData);
+  };
+
+  const handleEnterKey = (e) => {
+    console.log(e);
+    if (
+      e.key === "Enter" &&
+      passwordInputs.join("") ===
+        location?.state?.currentStageInfo[0].onedayPassword
+    ) {
+      handleJudgeLogin(
+        "currentStage",
+        contestInfo.id,
+        location.state.currentJudgeInfo.seatIndex
+      );
+    }
   };
 
   //로그인시에 location.state에 currentStageInfo를 담아서 넘겨야한다.
@@ -144,7 +168,7 @@ const ScoreLogin = () => {
   }, []);
 
   useEffect(() => {
-    if (location?.state?.currentStageInfo[0].contestId) {
+    if (location?.state?.currentStageInfo[0]?.contestId) {
       // Debounce the getDocument call to once every second
 
       const debouncedGetDocument = debounce(
@@ -215,7 +239,9 @@ const ScoreLogin = () => {
                     type="number"
                     ref={pwdRefs[index]}
                     onFocus={(e) => e.target.select()}
-                    onKeyDown={(e) => handleKeyDown(pwdRefs[index - 1], e)}
+                    onKeyDown={(e) =>
+                      handleKeyDown(index, pwdRefs[index - 1], e)
+                    }
                     onChange={(e) => handleInputs(index, e.target.value)}
                     value={value}
                     name={`judgePassword${index + 1}`}

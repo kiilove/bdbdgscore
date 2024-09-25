@@ -163,7 +163,7 @@ const JudgeLobby = () => {
       realtimeData.compares.status.compareIng
     ) {
       topPlayers = [...realtimeData.compares.players];
-      console.log(topPlayers);
+      // console.log(topPlayers);
       compareMode = realtimeData.compares;
     }
 
@@ -205,7 +205,6 @@ const JudgeLobby = () => {
     prevComparePlayers = [],
     realtimeComparemode = {}
   ) => {
-    console.log(prevComparePlayers);
     const { stageId, stageNumber, categoryJudgeType } = stageInfo;
     const {
       judgeUid,
@@ -220,14 +219,13 @@ const JudgeLobby = () => {
       (f) => f.judgeUid === judgeUid
     ).judgeSignature;
 
-    //점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
-    //playerspointIfno랑 변수명을 다르게 하기 위해 players를 빼고 변수명 정의
-    const playerPointArray = PointArray.map((point, pIdx) => {
+    // 점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
+    const playerPointArray = PointArray.map((point) => {
       const { title } = point;
       return { title, point: undefined };
     });
 
-    const scoreCardInfo = grades.map((grade, gIdx) => {
+    const scoreCardInfo = grades.map((grade) => {
       let comparePlayers = [];
       let matchedTopPlayers = [];
       let matchedSubPlayers = [];
@@ -239,7 +237,8 @@ const JudgeLobby = () => {
       let matchedExtraRange = [];
 
       const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
-      console.log(realtimeData.compares.scoreMode);
+
+      // topOnly 설정인 경우
       if (
         realtimeData.compares.scoreMode === "topOnly" &&
         topPlayers.length > 0
@@ -247,6 +246,7 @@ const JudgeLobby = () => {
         comparePlayers = [...topPlayers];
       }
 
+      // topWithSub 설정인 경우
       if (
         realtimeData.compares.scoreMode === "topWithSub" &&
         prevComparePlayers.length > 0
@@ -258,11 +258,11 @@ const JudgeLobby = () => {
         .filter((player) => player.contestGradeId === gradeId)
         .sort((a, b) => a.playerIndex - b.playerIndex);
 
-      let matchedOriginalPlayers = filterPlayers.map((player, pIdx) => {
+      let matchedOriginalPlayers = filterPlayers.map((player) => {
         const newPlayers = { ...player, playerScore: 0, playerPointArray };
-
         return newPlayers;
       });
+
       let matchedOriginalRange = matchedOriginalPlayers.map((player, pIdx) => {
         return {
           scoreValue: pIdx + 1,
@@ -275,25 +275,15 @@ const JudgeLobby = () => {
         topPlayers.some((cp) => cp.playerNumber === fp.playerNumber)
       );
 
-      //다회차 비교심사의 경우 이전 회차의 선수 명부를 그대로 받아서 처리해야하므로
-      //filterPlayers를 기준으로 하면 안되고 현재의 top, 이전 회차 players 배열을 합친후에 필터링 처리하였다.
+      // 다회차 비교심사의 경우 이전 회차 선수들 처리
       const filterSubPlayers = comparePlayers.filter((fp) =>
         topPlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
       );
 
-      //이전에는 top을 제외한 인원을 normal로 처리하면 되었지만
-      //다회차 비교심사시 한번 더 그룹화 해야하고
-      //이전 차수 선수들까지는 심사그룹에 들어가야 하기 때문에 다시 한번 그룹을 나눠야 했다.
-      //변수형태로 변경하여 상황에 맞춰서 normal을 처리해야한다.
       let filterNormalPlayers = [];
       let filterExtraPlayers = [];
 
-      //topOnly로 세팅되었다면 나머지 선수를 전부 제외처리하므로
-      //filterExtraPlayers topPlayers를 제외한 모든 선수를 저장해야한다.
-      //topWithSub의 경우는 이전 회차 선수들까지 심사를 해야하므로 역시 normal은 빈배열을 리턴한다.
-      //sub를 normal로 세팅하지 않은 이유는 전체를 다 심사해야하는 경우
-      //이전 회차 선수들의 순위를 보장하기 위해 top과 sub normal로 분리 처리할 예정이다.
-      //normal은 심사를 할수 있는 그룹으로 변경되었기때문에 이경우 빈배열을 세팅해야한다.
+      // 'topOnly'와 'topWithSub' 모드 처리
       if (
         realtimeComparemode.scoreMode === "topOnly" ||
         realtimeComparemode.scoreMode === "topWithSub"
@@ -304,19 +294,17 @@ const JudgeLobby = () => {
         );
       }
 
-      //모든 선수 심사 모드일 경우만 normalPlayers의 항목이 생성되어야한다.
+      // 'all' 모드에서 top에 속한 선수를 제외하고 normal을 생성
       if (realtimeComparemode.scoreMode === "all") {
-        filterNormalPlayers = filterPlayers.filter((fp) =>
-          comparePlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
+        filterNormalPlayers = filterPlayers.filter(
+          (fp) => !topPlayers.some((cp) => cp.playerNumber === fp.playerNumber)
         );
       }
 
-      //비교심사 선정 인원있는 경우 비교심사대상 인원을 top으로 배정
-      //topRange도 같이 배정
+      // top 범주 처리
       if (filterTopPlayers?.length > 0) {
-        const matchedPlayers = filterTopPlayers.map((player, pIdx) => {
+        const matchedPlayers = filterTopPlayers.map((player) => {
           const newPlayers = { ...player, playerScore: 0, playerPointArray };
-
           return newPlayers;
         });
         matchedTopPlayers = [...matchedPlayers];
@@ -329,10 +317,10 @@ const JudgeLobby = () => {
         });
       }
 
+      // sub 범주 처리
       if (filterSubPlayers?.length > 0) {
-        const matchedPlayers = filterSubPlayers.map((player, pIdx) => {
+        const matchedPlayers = filterSubPlayers.map((player) => {
           const newPlayers = { ...player, playerScore: 0, playerPointArray };
-
           return newPlayers;
         });
         matchedSubPlayers = [...matchedPlayers];
@@ -345,28 +333,30 @@ const JudgeLobby = () => {
         });
       }
 
+      // normal 범주 처리
       if (filterNormalPlayers?.length > 0) {
-        const matchedPlayers = filterNormalPlayers.map((player, pIdx) => {
+        const matchedPlayers = filterNormalPlayers.map((player) => {
           const newPlayers = { ...player, playerScore: 0, playerPointArray };
-
           return newPlayers;
         });
         matchedNormalPlayers = [...matchedPlayers];
+
+        // scoreValue는 topPlayers와 subPlayers에 이어서 할당
         matchedNormalRange = matchedPlayers.map((player, pIdx) => {
           return {
             scoreValue:
               matchedTopPlayers.length + matchedSubPlayers.length + pIdx + 1,
-            scoreIndex: matchedPlayers.length + matchedSubPlayers.length + pIdx,
+            scoreIndex:
+              matchedTopPlayers.length + matchedSubPlayers.length + pIdx,
             scoreOwner: undefined,
           };
         });
       }
 
-      //extra 제외처리함
+      // extra 범주 처리 (top, normal에 속하지 않는 선수)
       if (filterExtraPlayers?.length > 0) {
-        const matchedPlayers = filterExtraPlayers.map((player, pIdx) => {
+        const matchedPlayers = filterExtraPlayers.map((player) => {
           const newPlayers = { ...player, playerScore: 1000, playerPointArray };
-
           return newPlayers;
         });
         matchedExtraPlayers = [...matchedPlayers];
@@ -378,33 +368,25 @@ const JudgeLobby = () => {
           };
         });
 
-        //matchedOriginalPlayers도 여기에서 1000등으로 세팅해서 넘어간다.
+        // matchedOriginalPlayers에서 1000등으로 설정
         const newMatchedOriginalPlayers = matchedOriginalPlayers.map(
-          (player, pIdx) => {
-            let newPlayerScore = player.playerScore;
-            const { playerNumber } = player;
-            if (matchedExtraPlayers?.length > 0) {
-              const findMatchedExtraPlayer = matchedExtraPlayers.findIndex(
-                (f) => f.playerNumber === playerNumber
-              );
-              if (findMatchedExtraPlayer !== -1) {
-                newPlayerScore = 1000;
-              }
-            }
-
+          (player) => {
+            const newPlayerScore = matchedExtraPlayers.some(
+              (extraPlayer) => extraPlayer.playerNumber === player.playerNumber
+            )
+              ? 1000
+              : player.playerScore;
             return { ...player, playerScore: newPlayerScore };
           }
         );
         matchedOriginalPlayers = [...newMatchedOriginalPlayers];
       }
 
-      //top, normal이 모두 없는 경우는 비교심시가 아니거나 아직 명단 확정이 안되었다고 가정
-      //top은 빈배열로 정의하고 normal에 체급에 해당하는 선수 모두 배정
+      // top과 normal이 없는 경우
       if (filterTopPlayers.length === 0 && filterNormalPlayers.length === 0) {
         matchedTopPlayers = [];
         matchedTopRange = [];
         matchedNormalPlayers = [...matchedOriginalPlayers];
-
         matchedNormalRange = matchedOriginalPlayers.map((player, pIdx) => {
           return {
             scoreValue: pIdx + 1,
@@ -444,6 +426,255 @@ const JudgeLobby = () => {
 
     return scoreCardInfo;
   };
+
+  // const makeScoreCard = (
+  //   stageInfo,
+  //   judgeInfo,
+  //   grades,
+  //   players,
+  //   topPlayers = [],
+  //   prevComparePlayers = [],
+  //   realtimeComparemode = {}
+  // ) => {
+  //   // console.log(prevComparePlayers);
+  //   const { stageId, stageNumber, categoryJudgeType } = stageInfo;
+  //   const {
+  //     judgeUid,
+  //     judgeName,
+  //     isHead,
+  //     seatIndex,
+  //     contestId,
+  //     onedayPassword,
+  //   } = judgeInfo;
+
+  //   const judgeSignature = judgePoolsArray.find(
+  //     (f) => f.judgeUid === judgeUid
+  //   ).judgeSignature;
+
+  //   //점수형에 필요한 정보를 초기화해서 선수 각자에게 부여한후 넘어간다.
+  //   //playerspointIfno랑 변수명을 다르게 하기 위해 players를 빼고 변수명 정의
+  //   const playerPointArray = PointArray.map((point, pIdx) => {
+  //     const { title } = point;
+  //     return { title, point: undefined };
+  //   });
+
+  //   const scoreCardInfo = grades.map((grade, gIdx) => {
+  //     let comparePlayers = [];
+  //     let matchedTopPlayers = [];
+  //     let matchedSubPlayers = [];
+  //     let matchedNormalPlayers = [];
+  //     let matchedExtraPlayers = [];
+  //     let matchedTopRange = [];
+  //     let matchedSubRange = [];
+  //     let matchedNormalRange = [];
+  //     let matchedExtraRange = [];
+
+  //     const { categoryId, categoryTitle, gradeId, gradeTitle } = grade;
+
+  //     if (
+  //       realtimeData.compares.scoreMode === "topOnly" &&
+  //       topPlayers.length > 0
+  //     ) {
+  //       comparePlayers = [...topPlayers];
+  //     }
+
+  //     if (
+  //       realtimeData.compares.scoreMode === "topWithSub" &&
+  //       prevComparePlayers.length > 0
+  //     ) {
+  //       comparePlayers = [...prevComparePlayers];
+  //     }
+
+  //     const filterPlayers = players
+  //       .filter((player) => player.contestGradeId === gradeId)
+  //       .sort((a, b) => a.playerIndex - b.playerIndex);
+
+  //     let matchedOriginalPlayers = filterPlayers.map((player, pIdx) => {
+  //       const newPlayers = { ...player, playerScore: 0, playerPointArray };
+
+  //       return newPlayers;
+  //     });
+  //     let matchedOriginalRange = matchedOriginalPlayers.map((player, pIdx) => {
+  //       return {
+  //         scoreValue: pIdx + 1,
+  //         scoreIndex: pIdx,
+  //         scoreOwner: undefined,
+  //       };
+  //     });
+
+  //     const filterTopPlayers = filterPlayers.filter((fp) =>
+  //       topPlayers.some((cp) => cp.playerNumber === fp.playerNumber)
+  //     );
+
+  //     //다회차 비교심사의 경우 이전 회차의 선수 명부를 그대로 받아서 처리해야하므로
+  //     //filterPlayers를 기준으로 하면 안되고 현재의 top, 이전 회차 players 배열을 합친후에 필터링 처리하였다.
+  //     const filterSubPlayers = comparePlayers.filter((fp) =>
+  //       topPlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
+  //     );
+
+  //     //이전에는 top을 제외한 인원을 normal로 처리하면 되었지만
+  //     //다회차 비교심사시 한번 더 그룹화 해야하고
+  //     //이전 차수 선수들까지는 심사그룹에 들어가야 하기 때문에 다시 한번 그룹을 나눠야 했다.
+  //     //변수형태로 변경하여 상황에 맞춰서 normal을 처리해야한다.
+  //     let filterNormalPlayers = [];
+  //     let filterExtraPlayers = [];
+
+  //     //topOnly로 세팅되었다면 나머지 선수를 전부 제외처리하므로
+  //     //filterExtraPlayers topPlayers를 제외한 모든 선수를 저장해야한다.
+  //     //topWithSub의 경우는 이전 회차 선수들까지 심사를 해야하므로 역시 normal은 빈배열을 리턴한다.
+  //     //sub를 normal로 세팅하지 않은 이유는 전체를 다 심사해야하는 경우
+  //     //이전 회차 선수들의 순위를 보장하기 위해 top과 sub normal로 분리 처리할 예정이다.
+  //     //normal은 심사를 할수 있는 그룹으로 변경되었기때문에 이경우 빈배열을 세팅해야한다.
+  //     if (
+  //       realtimeComparemode.scoreMode === "topOnly" ||
+  //       realtimeComparemode.scoreMode === "topWithSub"
+  //     ) {
+  //       filterNormalPlayers = [];
+  //       filterExtraPlayers = filterPlayers.filter((fp) =>
+  //         comparePlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
+  //       );
+  //     }
+
+  //     //모든 선수 심사 모드일 경우만 normalPlayers의 항목이 생성되어야한다.
+  //     if (realtimeComparemode.scoreMode === "all") {
+  //       filterNormalPlayers = filterPlayers.filter((fp) =>
+  //         comparePlayers.every((cp) => cp.playerNumber !== fp.playerNumber)
+  //       );
+  //     }
+
+  //     //비교심사 선정 인원있는 경우 비교심사대상 인원을 top으로 배정
+  //     //topRange도 같이 배정
+  //     if (filterTopPlayers?.length > 0) {
+  //       const matchedPlayers = filterTopPlayers.map((player, pIdx) => {
+  //         const newPlayers = { ...player, playerScore: 0, playerPointArray };
+
+  //         return newPlayers;
+  //       });
+  //       matchedTopPlayers = [...matchedPlayers];
+  //       matchedTopRange = matchedPlayers.map((player, pIdx) => {
+  //         return {
+  //           scoreValue: pIdx + 1,
+  //           scoreIndex: pIdx,
+  //           scoreOwner: undefined,
+  //         };
+  //       });
+  //     }
+
+  //     if (filterSubPlayers?.length > 0) {
+  //       const matchedPlayers = filterSubPlayers.map((player, pIdx) => {
+  //         const newPlayers = { ...player, playerScore: 0, playerPointArray };
+
+  //         return newPlayers;
+  //       });
+  //       matchedSubPlayers = [...matchedPlayers];
+  //       matchedSubRange = matchedPlayers.map((player, pIdx) => {
+  //         return {
+  //           scoreValue: matchedTopPlayers.length + pIdx + 1,
+  //           scoreIndex: matchedTopPlayers.length + pIdx,
+  //           scoreOwner: undefined,
+  //         };
+  //       });
+  //     }
+
+  //     if (filterNormalPlayers?.length > 0) {
+  //       const matchedPlayers = filterNormalPlayers.map((player, pIdx) => {
+  //         const newPlayers = { ...player, playerScore: 0, playerPointArray };
+
+  //         return newPlayers;
+  //       });
+  //       matchedNormalPlayers = [...matchedPlayers];
+  //       matchedNormalRange = matchedPlayers.map((player, pIdx) => {
+  //         return {
+  //           scoreValue:
+  //             matchedTopPlayers.length + matchedSubPlayers.length + pIdx + 1,
+  //           scoreIndex: matchedPlayers.length + matchedSubPlayers.length + pIdx,
+  //           scoreOwner: undefined,
+  //         };
+  //       });
+  //     }
+
+  //     //extra 제외처리함
+  //     if (filterExtraPlayers?.length > 0) {
+  //       const matchedPlayers = filterExtraPlayers.map((player, pIdx) => {
+  //         const newPlayers = { ...player, playerScore: 1000, playerPointArray };
+
+  //         return newPlayers;
+  //       });
+  //       matchedExtraPlayers = [...matchedPlayers];
+  //       matchedExtraRange = matchedPlayers.map((player, pIdx) => {
+  //         return {
+  //           scoreValue: 1000,
+  //           scoreIndex: matchedPlayers.length + pIdx,
+  //           scoreOwner: "noId",
+  //         };
+  //       });
+
+  //       //matchedOriginalPlayers도 여기에서 1000등으로 세팅해서 넘어간다.
+  //       const newMatchedOriginalPlayers = matchedOriginalPlayers.map(
+  //         (player, pIdx) => {
+  //           let newPlayerScore = player.playerScore;
+  //           const { playerNumber } = player;
+  //           if (matchedExtraPlayers?.length > 0) {
+  //             const findMatchedExtraPlayer = matchedExtraPlayers.findIndex(
+  //               (f) => f.playerNumber === playerNumber
+  //             );
+  //             if (findMatchedExtraPlayer !== -1) {
+  //               newPlayerScore = 1000;
+  //             }
+  //           }
+
+  //           return { ...player, playerScore: newPlayerScore };
+  //         }
+  //       );
+  //       matchedOriginalPlayers = [...newMatchedOriginalPlayers];
+  //     }
+
+  //     //top, normal이 모두 없는 경우는 비교심시가 아니거나 아직 명단 확정이 안되었다고 가정
+  //     //top은 빈배열로 정의하고 normal에 체급에 해당하는 선수 모두 배정
+  //     if (filterTopPlayers.length === 0 && filterNormalPlayers.length === 0) {
+  //       matchedTopPlayers = [];
+  //       matchedTopRange = [];
+  //       matchedNormalPlayers = [...matchedOriginalPlayers];
+
+  //       matchedNormalRange = matchedOriginalPlayers.map((player, pIdx) => {
+  //         return {
+  //           scoreValue: pIdx + 1,
+  //           scoreIndex: pIdx,
+  //           scoreOwner: undefined,
+  //         };
+  //       });
+  //     }
+
+  //     return {
+  //       contestId,
+  //       stageId,
+  //       stageNumber,
+  //       categoryId,
+  //       categoryTitle,
+  //       categoryJudgeType,
+  //       gradeId,
+  //       gradeTitle,
+  //       originalPlayers: matchedOriginalPlayers,
+  //       originalRange: matchedOriginalRange,
+  //       judgeUid,
+  //       judgeName,
+  //       judgeSignature,
+  //       onedayPassword,
+  //       isHead,
+  //       seatIndex,
+  //       matchedTopPlayers,
+  //       matchedTopRange,
+  //       matchedSubPlayers,
+  //       matchedSubRange,
+  //       matchedNormalPlayers,
+  //       matchedNormalRange,
+  //       matchedExtraPlayers,
+  //       matchedExtraRange,
+  //     };
+  //   });
+
+  //   return scoreCardInfo;
+  // };
 
   const handleMachineCheck = () => {
     const savedCurrentContest = localStorage.getItem("currentContest");
@@ -487,12 +718,138 @@ const JudgeLobby = () => {
   };
 
   const handleNavigate = async ({ actionType }) => {
+    console.log("handleNavigate called with actionType:", actionType); // 콘솔 로그 추가
+    const collectionInfo = `currentStage/${contestInfo.id}/judges/${
+      currentJudgeInfo.seatIndex - 1
+    }`;
+
+    console.log("collectionInfo:", collectionInfo); // 콘솔 로그 추가
+    let prevTop = [];
+
+    try {
+      switch (actionType) {
+        case "login":
+          console.log(
+            "Navigating to login with currentStageInfo:",
+            currentStageInfo
+          );
+          navigate("/scorelogin", {
+            replace: true,
+            state: { currentStageInfo, currentJudgeInfo, contestInfo },
+          });
+          break;
+
+        case "point":
+          console.log(
+            "Navigating to point table with currentStageInfo:",
+            currentStageInfo
+          );
+          await updateRealtimeData
+            .updateData(collectionInfo, {
+              isEnd: false,
+              isLogined: true,
+              seatIndex: currentJudgeInfo.seatIndex,
+            })
+            .then(() =>
+              navigate("/autopointtable", {
+                replace: true,
+                state: {
+                  currentStageInfo,
+                  currentJudgeInfo,
+                  contestInfo,
+                  compareInfo: { ...realtimeData?.compares },
+                },
+              })
+            );
+          break;
+
+        case "ranking":
+          console.log(
+            "Navigating to score table with currentStageInfo:",
+            currentStageInfo
+          );
+          await updateRealtimeData
+            .updateData(collectionInfo, {
+              isEnd: false,
+              isLogined: true,
+              seatIndex: currentJudgeInfo.seatIndex,
+            })
+            .then(() =>
+              navigate("/autoscoretable", {
+                replace: true,
+                state: {
+                  currentStageInfo,
+                  currentJudgeInfo,
+                  contestInfo,
+                  compareInfo: { ...realtimeData?.compares },
+                },
+              })
+            );
+          break;
+
+        case "vote":
+          console.log(realtimeData?.compares?.compareIndex);
+          console.log(
+            "Navigating to vote, checking realtimeData compares:",
+            realtimeData?.compares
+          );
+
+          if (
+            currentComparesArray.length > 0 &&
+            currentComparesArray[currentComparesArray.length - 1]?.players
+          ) {
+            prevTop = [
+              ...currentComparesArray[currentComparesArray.length - 1].players,
+            ];
+          } else {
+            prevTop = []; // prevTop을 빈 배열로 초기화
+          }
+
+          console.log("prevTop:", prevTop); // 콘솔 로그 추가
+
+          const collectionInfoVote = `currentStage/${
+            contestInfo.id
+          }/compares/judges/${currentJudgeInfo.seatIndex - 1}/messageStatus`;
+
+          try {
+            await updateRealtimeData
+              .updateData(collectionInfoVote, "투표중")
+              .then((data, error) => {
+                console.log("error", error);
+                console.log("updated", data);
+                navigate("/comparevote", {
+                  replace: true,
+                  state: {
+                    currentStageInfo,
+                    currentJudgeInfo,
+                    contestInfo,
+                    compareInfo: { ...realtimeData?.compares },
+                    propSubPlayers: [...prevTop], // 추가된 prevTop 확인
+                  },
+                });
+              });
+          } catch (error) {
+            console.error("Error during updateRealtimeData:", error); // 예외 발생 시 오류 출력
+          }
+          break;
+
+        default:
+          console.log("Invalid actionType:", actionType);
+          break;
+      }
+    } catch (error) {
+      console.error("Error in handleNavigate:", error);
+    }
+  };
+
+  const handleNavigateOld = async ({ actionType }) => {
     const collectionInfo = `currentStage/${contestInfo.id}/judges/${
       currentJudgeInfo.seatIndex - 1
     }`;
     let prevTop = [];
     switch (actionType) {
       case "login":
+        console.log(currentStageInfo);
         navigate("/scorelogin", {
           replace: true,
           state: { currentStageInfo, currentJudgeInfo, contestInfo },
@@ -594,6 +951,7 @@ const JudgeLobby = () => {
         const collectionInfoVote = `currentStage/${
           contestInfo.id
         }/compares/judges/${currentJudgeInfo.seatIndex - 1}`;
+        console.log(collectionInfoVote);
         try {
           await updateRealtimeData
             .updateData(collectionInfoVote, {
@@ -653,7 +1011,7 @@ const JudgeLobby = () => {
       // Debounce the getDocument call to once every second
       const debouncedGetDocument = debounce(
         () => getDocument(`currentStage/${contestInfo.id}`),
-        2000
+        5000
       );
       debouncedGetDocument();
     }
@@ -695,7 +1053,7 @@ const JudgeLobby = () => {
 
     if (realtimeData?.judges[machineId - 1]) {
       setJudgeScoreEnd(() => realtimeData?.judges[machineId - 1]?.isEnd);
-      console.log(judgeScoreEnd);
+      // console.log(judgeScoreEnd);
     }
   }, [
     currentJudgeAssign,
@@ -717,9 +1075,9 @@ const JudgeLobby = () => {
     }
   }, [realtimeData?.stageId, realtimeData?.compares]);
 
-  useEffect(() => {
-    console.log(currentStageInfo);
-  }, [currentStageInfo]);
+  // useEffect(() => {
+  //   console.log(currentStageInfo);
+  // }, [currentStageInfo]);
 
   // useEffect(() => {
   //   if (!judgeLogined) {
