@@ -76,7 +76,6 @@ const JudgeLobby = () => {
     contestId,
     compareListId
   ) => {
-    console.log(contestId);
     const condition = [where("contestId", "==", contestId)];
     try {
       await fetchStagesAssign
@@ -122,15 +121,6 @@ const JudgeLobby = () => {
     playersFinalArray,
     comparesArray
   ) => {
-    // console.log(
-    //   stageId,
-    //   machineId,
-    //   stagesAssign,
-    //   judgesAssign,
-    //   playersFinalArray
-    // );
-    //console.log(comparesArray);
-
     let topPlayers = [];
     let compareMode = "";
     let grades = [];
@@ -842,153 +832,6 @@ const JudgeLobby = () => {
     }
   };
 
-  const handleNavigateOld = async ({ actionType }) => {
-    const collectionInfo = `currentStage/${contestInfo.id}/judges/${
-      currentJudgeInfo.seatIndex - 1
-    }`;
-    let prevTop = [];
-    switch (actionType) {
-      case "login":
-        console.log(currentStageInfo);
-        navigate("/scorelogin", {
-          replace: true,
-          state: { currentStageInfo, currentJudgeInfo, contestInfo },
-        });
-        break;
-      // case "judge":
-      //   try {
-      //     await updateRealtimeData
-      //       .updateData(collectionInfo, {
-      //         isEnd: false,
-      //         isLogined: true,
-      //         seatIndex: currentJudgeInfo.seatIndex,
-      //       })
-      //       .then(() => {
-      //         if (realtimeData.categoryJudgeType === "score") {
-      //           navigate("/autoscoretable", {
-      //             replace: true,
-      //             state: {
-      //               currentStageInfo,
-      //               currentJudgeInfo,
-      //               contestInfo,
-      //               compareInfo: { ...realtimeData?.compares },
-      //             },
-      //           });
-      //         }
-      //         if (realtimeData.categoryJudgeType === "point") {
-      //           navigate("/autopointtable", {
-      //             replace: true,
-      //             state: {
-      //               currentStageInfo,
-      //               currentJudgeInfo,
-      //               contestInfo,
-      //               compareInfo: { ...realtimeData?.compares },
-      //             },
-      //           });
-      //         }
-      //       });
-      //   } catch (error) {
-      //     console.log(error);
-      //   }
-
-      //   break;
-      case "point":
-        try {
-          await updateRealtimeData
-            .updateData(collectionInfo, {
-              isEnd: false,
-              isLogined: true,
-              seatIndex: currentJudgeInfo.seatIndex,
-            })
-            .then(() =>
-              navigate("/autopointtable", {
-                replace: false,
-                state: {
-                  currentStageInfo,
-                  currentJudgeInfo,
-                  contestInfo,
-                  compareInfo: { ...realtimeData?.compares },
-                },
-              })
-            );
-        } catch (error) {
-          console.log(error);
-        }
-
-        break;
-
-      case "ranking":
-        try {
-          await updateRealtimeData
-            .updateData(collectionInfo, {
-              isEnd: false,
-              isLogined: true,
-              seatIndex: currentJudgeInfo.seatIndex,
-            })
-            .then(() =>
-              navigate("/autoscoretable", {
-                replace: false,
-                state: {
-                  currentStageInfo,
-                  currentJudgeInfo,
-                  contestInfo,
-                  compareInfo: { ...realtimeData?.compares },
-                },
-              })
-            );
-        } catch (error) {
-          console.log(error);
-        }
-
-        break;
-      case "vote":
-        if (realtimeData?.compares?.compareIndex >= 1) {
-          prevTop = [
-            ...currentComparesArray[currentComparesArray.length - 1]?.players,
-          ];
-        }
-
-        const collectionInfoVote = `currentStage/${
-          contestInfo.id
-        }/compares/judges/${currentJudgeInfo.seatIndex - 1}`;
-        console.log(collectionInfoVote);
-        try {
-          await updateRealtimeData
-            .updateData(collectionInfoVote, {
-              messageStatus: "투표중",
-              seatIndex: currentJudgeInfo.seatIndex,
-            })
-            // .then(async () => {
-            //   await updateRealtimeData.updateData(collectionInfo, {
-            //     isEnd: false,
-            //     isLogined: true,
-            //     seatIndex: currentJudgeInfo.seatIndex,
-            //   });
-            // })
-            // 여기서 건드렸더니 오류가 남 compareVote에 진입했을때 변경하거나
-            // compareVote를 저장했을때 변경하도록 해야겠어.
-            .then(() =>
-              navigate("/comparevote", {
-                replace: true,
-                state: {
-                  currentStageInfo,
-                  currentJudgeInfo,
-                  contestInfo,
-                  compareInfo: { ...realtimeData?.compares },
-                  propSubPlayers: [...prevTop],
-                },
-              })
-            );
-        } catch (error) {
-          console.log(error);
-        }
-
-        break;
-      default:
-        break;
-    }
-  };
-
   useEffect(() => {
     let timer;
 
@@ -1075,29 +918,6 @@ const JudgeLobby = () => {
     }
   }, [realtimeData?.stageId, realtimeData?.compares]);
 
-  // useEffect(() => {
-  //   console.log(currentStageInfo);
-  // }, [currentStageInfo]);
-
-  // useEffect(() => {
-  //   if (!judgeLogined) {
-  //     setNavigateType(() => "login");
-  //   }
-  //   if (judgeLogined && !compareStatus?.compareStart) {
-  //     setNavigateType(() => realtimeData?.categoryJudgeType);
-  //   }
-  //   if (judgeLogined && compareStatus?.compareIng) {
-  //     setNavigateType(() => realtimeData?.categoryJudgeType);
-  //   }
-  //   if (
-  //     judgeLogined &&
-  //     compareStatus?.compareStart &&
-  //     judgeCompareVoted === "확인전"
-  //   ) {
-  //     setNavigateType(() => "vote");
-  //   }
-  // }, [compareStatus, judgeCompareVoted, judgeLogined, countdown]);
-
   useEffect(() => {
     handleMachineCheck();
     setIsRefresh(true);
@@ -1107,59 +927,7 @@ const JudgeLobby = () => {
     if (localJudgeUid && currentJudgeInfo) {
       handleLoginCheck(localJudgeUid, currentJudgeInfo.judgeUid);
     }
-    //console.log(currentStageInfo);
   }, [localJudgeUid, currentJudgeInfo, realtimeData?.judges]);
-
-  useEffect(() => {
-    console.log(navigateType);
-  }, [countdown]);
-
-  // useEffect(() => {
-  //   const timeout = setTimeout(autoClickFunction, 5000); // 5초 후에 autoClickFunction 실행
-  //   return () => clearTimeout(timeout); // 컴포넌트 언마운트 시 타임아웃 제거
-  // }, [
-  //   judgeLogined,
-  //   compareStatus,
-  //   judgeScoreEnd,
-  //   realtimeData,
-  //   judgeCompareVoted,
-  // ]);
-  const NavigationButton = ({ onClick, label }) => (
-    <div className="flex" onClick={onClick}>
-      {label}
-    </div>
-  );
-
-  const autoClickFunction = () => {
-    if (
-      judgeLogined &&
-      !compareStatus.compareStart &&
-      !compareStatus.compareIng &&
-      !judgeScoreEnd
-    ) {
-      handleNavigate({
-        actionType: realtimeData?.categoryJudgeType,
-      });
-    } else if (judgeLogined && compareStatus.compareIng && !judgeScoreEnd) {
-      handleNavigate({
-        actionType: realtimeData?.categoryJudgeType,
-      });
-    } else if (!judgeLogined) {
-      handleNavigate({ actionType: "login" });
-    } else if (
-      judgeLogined &&
-      compareStatus.compareStart &&
-      judgeCompareVoted === "확인전"
-    ) {
-      handleNavigate({ actionType: "vote" });
-    } else if (
-      judgeLogined &&
-      compareStatus.compareStart &&
-      judgeCompareVoted === "투표중"
-    ) {
-      handleNavigate({ actionType: "vote" });
-    }
-  };
 
   return (
     <>
@@ -1168,14 +936,23 @@ const JudgeLobby = () => {
           <LoadingPage />
         </div>
       )}
-      <div className="flex w-full h-full flex-col bg-white justify-start items-center gap-y-2">
-        <div
-          className="flex"
-          onClick={() => navigate("/setting", { replace: true })}
-        >
-          기기설정
+      <div className="flex w-full h-screen flex-col bg-white justify-center items-start ">
+        <div className="flex w-full h-14 justify-end items-center px-5 gap-x-2">
+          <button
+            className="flex border px-5 py-2 rounded-lg"
+            onClick={() => navigate("/lobby", { replace: true })}
+          >
+            대기화면 강제이동
+          </button>
+
+          <button
+            className="flex border px-5 py-2 rounded-lg"
+            onClick={() => navigate("/setting", { replace: true })}
+          >
+            기기설정
+          </button>
         </div>
-        <div className="flex text-xl font-bold  bg-gray-100 rounded-lg w-full justify-center items-center text-gray-700 flex-col  h-screen ">
+        <div className="flex text-xl font-bold  bg-gray-100 w-full justify-center items-center text-gray-700 flex-col  h-screen ">
           <ConfirmationModal
             isOpen={msgOpen}
             message={message}

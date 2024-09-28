@@ -120,10 +120,10 @@ const AddedModal = ({ isOpen, onConfirm, onCancel, message }) => {
               </button>
             </div>
           </div> */}
-          <div className="flex w-full justify-center items-center gap-x-2">
+          <div className="flex w-full justify-center items-center gap-x-6">
             <div className="flex justify-center gap-x-5 mt-5">
               <button
-                className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-lg w-52 h-10"
+                className="bg-red-500 hover:bg-red-600 text-white rounded py-1 px-4 text-lg w-52 h-16"
                 onClick={handleCancelClick}
               >
                 되돌아가기
@@ -132,7 +132,7 @@ const AddedModal = ({ isOpen, onConfirm, onCancel, message }) => {
             {message.validate === "end" && (
               <div className="flex justify-center gap-x-5 mt-5">
                 <button
-                  className="bg-blue-700 hover:bg-blue-600 text-white rounded py-1 px-4 text-lg w-52 h-10"
+                  className="bg-blue-700 hover:bg-blue-600 text-white rounded py-1 px-4 text-lg w-52 h-16"
                   onClick={handleConfirmClick}
                 >
                   로비로 이동합니다.
